@@ -1,0 +1,188 @@
+---
+source: crates/mpl-syntax/tests/snapshots.rs
+expression: "syntax_snapshot(input, &display_cst(parse.syntax()), parse.diagnostics(),)"
+---
+INPUT:
+
+set custom_unit = "ms";
+http:request_duration[5m] as latency
+| where service == "api" and not status is string
+| map fill::const(0)
+| align to $__interval using avg
+| group by service, region using sum
+| bucket by status to 1m using histogram("le")
+| extend slo = 99.9, matcher = #/api\/v1/
+| as api_latency
+
+CST:
+
+Root
+├── Directive
+│   ├── Keyword "set"
+│   ├── Whitespace " "
+│   ├── NameRef
+│   │   ╰── Ident "custom_unit"
+│   ├── Whitespace " "
+│   ├── Eq "="
+│   ├── Whitespace " "
+│   ├── StringExpr
+│   │   ╰── String "\"ms\""
+│   ╰── Semicolon ";"
+├── Whitespace "\n"
+├── SimpleQuery
+│   ├── Source
+│   │   ├── NameRef
+│   │   │   ╰── Ident "http"
+│   │   ├── Colon ":"
+│   │   ├── NameRef
+│   │   │   ╰── Ident "request_duration"
+│   │   ├── TimeRange
+│   │   │   ├── LBracket "["
+│   │   │   ├── Duration "5m"
+│   │   │   ╰── RBracket "]"
+│   │   ├── Whitespace " "
+│   │   ├── Keyword "as"
+│   │   ├── Whitespace " "
+│   │   ╰── NameRef
+│   │       ╰── Ident "latency"
+│   ├── Whitespace "\n"
+│   ├── WherePipe
+│   │   ├── Pipe "|"
+│   │   ├── Whitespace " "
+│   │   ├── Keyword "where"
+│   │   ├── CompareExpr
+│   │   │   ├── Whitespace " "
+│   │   │   ├── NameRef
+│   │   │   │   ╰── Ident "service"
+│   │   │   ├── Whitespace " "
+│   │   │   ├── Cmp "=="
+│   │   │   ├── Whitespace " "
+│   │   │   ╰── StringExpr
+│   │   │       ╰── String "\"api\""
+│   │   ├── Whitespace " "
+│   │   ├── Keyword "and"
+│   │   ├── Whitespace " "
+│   │   ╰── NotExpr
+│   │       ├── Keyword "not"
+│   │       ╰── TypeCheckExpr
+│   │           ├── Whitespace " "
+│   │           ├── NameRef
+│   │           │   ╰── Ident "status"
+│   │           ├── Whitespace " "
+│   │           ├── Keyword "is"
+│   │           ├── Whitespace " "
+│   │           ╰── NameRef
+│   │               ╰── Ident "string"
+│   ├── Whitespace "\n"
+│   ├── MapPipe
+│   │   ├── Pipe "|"
+│   │   ├── Whitespace " "
+│   │   ├── Keyword "map"
+│   │   ├── Whitespace " "
+│   │   ╰── FunctionCall
+│   │       ├── NameRef
+│   │       │   ├── Ident "fill"
+│   │       │   ├── DoubleColon "::"
+│   │       │   ╰── Ident "const"
+│   │       ├── LParen "("
+│   │       ├── NumberExpr
+│   │       │   ╰── Number "0"
+│   │       ╰── RParen ")"
+│   ├── Whitespace "\n"
+│   ├── AlignPipe
+│   │   ├── Pipe "|"
+│   │   ├── Whitespace " "
+│   │   ├── Keyword "align"
+│   │   ├── Whitespace " "
+│   │   ├── Keyword "to"
+│   │   ├── Whitespace " "
+│   │   ├── ParamExpr
+│   │   │   ╰── Param "$__interval"
+│   │   ├── Whitespace " "
+│   │   ├── Keyword "using"
+│   │   ├── Whitespace " "
+│   │   ╰── FunctionCall
+│   │       ╰── NameRef
+│   │           ╰── Ident "avg"
+│   ├── Whitespace "\n"
+│   ├── GroupPipe
+│   │   ├── Pipe "|"
+│   │   ├── Whitespace " "
+│   │   ├── Keyword "group"
+│   │   ├── Whitespace " "
+│   │   ├── Keyword "by"
+│   │   ├── Whitespace " "
+│   │   ├── NameRef
+│   │   │   ╰── Ident "service"
+│   │   ├── Comma ","
+│   │   ├── Whitespace " "
+│   │   ├── NameRef
+│   │   │   ╰── Ident "region"
+│   │   ├── Whitespace " "
+│   │   ├── Keyword "using"
+│   │   ├── Whitespace " "
+│   │   ╰── FunctionCall
+│   │       ╰── NameRef
+│   │           ╰── Ident "sum"
+│   ├── Whitespace "\n"
+│   ├── BucketPipe
+│   │   ├── Pipe "|"
+│   │   ├── Whitespace " "
+│   │   ├── Keyword "bucket"
+│   │   ├── Whitespace " "
+│   │   ├── Keyword "by"
+│   │   ├── Whitespace " "
+│   │   ├── NameRef
+│   │   │   ╰── Ident "status"
+│   │   ├── Whitespace " "
+│   │   ├── Keyword "to"
+│   │   ├── Whitespace " "
+│   │   ├── DurationExpr
+│   │   │   ╰── Duration "1m"
+│   │   ├── Whitespace " "
+│   │   ├── Keyword "using"
+│   │   ├── Whitespace " "
+│   │   ╰── FunctionCall
+│   │       ├── NameRef
+│   │       │   ╰── Ident "histogram"
+│   │       ├── LParen "("
+│   │       ├── StringExpr
+│   │       │   ╰── String "\"le\""
+│   │       ╰── RParen ")"
+│   ├── Whitespace "\n"
+│   ├── ExtendPipe
+│   │   ├── Pipe "|"
+│   │   ├── Whitespace " "
+│   │   ├── Keyword "extend"
+│   │   ├── Whitespace " "
+│   │   ├── Assignment
+│   │   │   ├── NameRef
+│   │   │   │   ╰── Ident "slo"
+│   │   │   ├── Whitespace " "
+│   │   │   ├── Eq "="
+│   │   │   ├── Whitespace " "
+│   │   │   ╰── NumberExpr
+│   │   │       ╰── Number "99.9"
+│   │   ├── Comma ","
+│   │   ├── Whitespace " "
+│   │   ╰── Assignment
+│   │       ├── NameRef
+│   │       │   ╰── Ident "matcher"
+│   │       ├── Whitespace " "
+│   │       ├── Eq "="
+│   │       ├── Whitespace " "
+│   │       ╰── RegexExpr
+│   │           ╰── Regex "#/api\\/v1/"
+│   ├── Whitespace "\n"
+│   ╰── AsPipe
+│       ├── Pipe "|"
+│       ├── Whitespace " "
+│       ├── Keyword "as"
+│       ├── Whitespace " "
+│       ╰── NameRef
+│           ╰── Ident "api_latency"
+╰── Whitespace "\n"
+
+DIAGNOSTICS:
+
+No diagnostics.

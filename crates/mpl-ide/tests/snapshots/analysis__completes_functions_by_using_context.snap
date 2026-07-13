@@ -1,0 +1,129 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "completions_snapshot(&[(\"align\",\n\"from prod:requests | align $__interval using $0\"),\n(\"group\", \"from prod:requests | group by host using $0\"),\n(\"bucket\", \"from prod:requests | bucket by le using $0\"),\n(\"compute\", \"compute total using $0\"),\n(\"map_using\", \"from prod:requests | map using $0\"),\n(\"map_direct\", \"from prod:requests | map $0\"),])"
+---
+CASE 1: ALIGN
+
+SOURCE:
+
+from prod:requests | align $__interval using █
+
+COMPLETIONS:
+
+  completions
+   ╭────
+ 1 │ from prod:requests | align $__interval using 
+   ·                                             ┬
+   ·                                             ╰── 7 completion item(s)
+   ╰────
+  help: avg
+        count
+        last
+        max
+        min
+        sum
+        prom::rate
+
+CASE 2: GROUP
+
+SOURCE:
+
+from prod:requests | group by host using █
+
+COMPLETIONS:
+
+  completions
+   ╭────
+ 1 │ from prod:requests | group by host using 
+   ·                                         ┬
+   ·                                         ╰── 5 completion item(s)
+   ╰────
+  help: avg
+        count
+        max
+        min
+        sum
+
+CASE 3: BUCKET
+
+SOURCE:
+
+from prod:requests | bucket by le using █
+
+COMPLETIONS:
+
+  completions
+   ╭────
+ 1 │ from prod:requests | bucket by le using 
+   ·                                        ┬
+   ·                                        ╰── 3 completion item(s)
+   ╰────
+  help: histogram
+        interpolate_cumulative_histogram
+        interpolate_delta_histogram
+
+CASE 4: COMPUTE
+
+SOURCE:
+
+compute total using █
+
+COMPLETIONS:
+
+  completions
+   ╭────
+ 1 │ compute total using 
+   ·                    ┬
+   ·                    ╰── 7 completion item(s)
+   ╰────
+  help: +
+        -
+        *
+        /
+        avg
+        max
+        min
+
+CASE 5: MAP_USING
+
+SOURCE:
+
+from prod:requests | map using █
+
+COMPLETIONS:
+
+  completions
+   ╭────
+ 1 │ from prod:requests | map using 
+   ·                               ┬
+   ·                               ╰── 7 completion item(s)
+   ╰────
+  help: rate
+        increase
+        abs
+        fill::prev
+        fill::const
+        filter::lt
+        is::lt
+
+CASE 6: MAP_DIRECT
+
+SOURCE:
+
+from prod:requests | map █
+
+COMPLETIONS:
+
+  completions
+   ╭────
+ 1 │ from prod:requests | map 
+   ·                         ┬
+   ·                         ╰── 7 completion item(s)
+   ╰────
+  help: rate
+        increase
+        abs
+        fill::prev
+        fill::const
+        filter::lt
+        is::lt

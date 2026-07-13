@@ -1,0 +1,30 @@
+---
+source: crates/mpl-hir/tests/diagnostics.rs
+expression: "snapshot(\"dataset:\")"
+---
+INPUT:
+
+dataset:
+
+DIAGNOSTICS:
+
+1. Error: expected metric name after `:`
+2. Error: missing source metric
+
+REPORTS:
+
+REPORT 1:
+
+  × expected metric name after `:`
+   ╭────
+ 1 │ dataset:
+   ╰────
+
+REPORT 2:
+
+  × missing source metric
+   ╭────
+ 1 │ dataset:
+   · ────┬───
+   ·     ╰── missing source metric
+   ╰────

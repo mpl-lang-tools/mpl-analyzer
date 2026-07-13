@@ -1,0 +1,105 @@
+---
+source: crates/mpl-hir/tests/lower.rs
+expression: "snapshot(r#\"set custom_unit = \"ms\";\nhttp:request_duration[5m] as latency\n| where service == \"api\" and not status is string\n| map fill::const(0)\n| align to $__interval using avg\n| group by service, region using sum\n| bucket by status to 1m using histogram(\"le\")\n| extend slo = 99.9, matcher = #/api\\/v1/\n| as api_latency\n\"#,)"
+---
+INPUT:
+
+set custom_unit = "ms";
+http:request_duration[5m] as latency
+| where service == "api" and not status is string
+| map fill::const(0)
+| align to $__interval using avg
+| group by service, region using sum
+| bucket by status to 1m using histogram("le")
+| extend slo = 99.9, matcher = #/api\/v1/
+| as api_latency
+
+HIR:
+
+HirFile
+├── directives
+│   ╰── Directive
+│       ├── name
+│       │   ╰── NameRef "custom_unit"
+│       ╰── value
+│           ╰── String "\"ms\""
+╰── query
+    ╰── SimpleQuery
+        ├── source
+        │   ╰── Source
+        │       ├── dataset
+        │       │   ╰── NameRef "http"
+        │       ├── metric
+        │       │   ╰── NameRef "request_duration"
+        │       ├── time_range
+        │       │   ╰── TimeRange "5m"
+        │       ╰── alias
+        │           ╰── NameRef "latency"
+        ╰── pipes
+            ├── WherePipe keyword="where"
+            │   ╰── predicates
+            │       ├── Compare op="=="
+            │       │   ├── lhs
+            │       │   │   ╰── NameRef "service"
+            │       │   ╰── rhs
+            │       │       ╰── String "\"api\""
+            │       ╰── Not
+            │           ╰── expr
+            │               ╰── TypeCheck
+            │                   ├── lhs
+            │                   │   ╰── NameRef "status"
+            │                   ╰── ty
+            │                       ╰── NameRef "string"
+            ├── MapPipe
+            │   ├── function
+            │   │   ╰── FunctionCall has_arg_list=true
+            │   │       ├── name
+            │   │       │   ╰── NameRef "fill::const"
+            │   │       ╰── args
+            │   │           ╰── Number "0"
+            │   ╰── exprs
+            ├── AlignPipe
+            │   ├── window
+            │   │   ╰── Param
+            │   │       ╰── name
+            │   │           ╰── NameRef "$__interval"
+            │   ╰── function
+            │       ╰── FunctionCall has_arg_list=false
+            │           ├── name
+            │           │   ╰── NameRef "avg"
+            │           ╰── args
+            ├── GroupPipe
+            │   ├── tags
+            │   │   ├── NameRef "service"
+            │   │   ╰── NameRef "region"
+            │   ╰── function
+            │       ╰── FunctionCall has_arg_list=false
+            │           ├── name
+            │           │   ╰── NameRef "sum"
+            │           ╰── args
+            ├── BucketPipe
+            │   ├── tags
+            │   │   ╰── NameRef "status"
+            │   ├── window
+            │   │   ╰── Duration "1m"
+            │   ╰── function
+            │       ╰── FunctionCall has_arg_list=true
+            │           ├── name
+            │           │   ╰── NameRef "histogram"
+            │           ╰── args
+            │               ╰── String "\"le\""
+            ├── ExtendPipe
+            │   ╰── assignments
+            │       ├── Assignment
+            │       │   ├── name
+            │       │   │   ╰── NameRef "slo"
+            │       │   ╰── value
+            │       │       ╰── Number "99.9"
+            │       ╰── Assignment
+            │           ├── name
+            │           │   ╰── NameRef "matcher"
+            │           ╰── value
+            │               ╰── Regex "#/api\\/v1/"
+            ╰── AsPipe
+                ╰── alias
+                    ╰── NameRef "api_latency"

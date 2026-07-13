@@ -1,0 +1,15 @@
+---
+source: crates/mpl-hir/tests/diagnostics.rs
+expression: "snapshot(r#\"set custom_unit = \"ms\";\ndataset:metric\n  | map fill::const(0)\n  | align to $__interval using avg\n  | bucket by host using histogram\n\"#,)"
+---
+INPUT:
+
+set custom_unit = "ms";
+dataset:metric
+  | map fill::const(0)
+  | align to $__interval using avg
+  | bucket by host using histogram
+
+DIAGNOSTICS:
+
+No diagnostics.

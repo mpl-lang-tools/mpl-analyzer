@@ -1,0 +1,55 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "completions_snapshot(&[(\"source_start\", \"$0\"),\n(\"param\", \"from prod:requests | align $0\"),\n(\"comparison\", \"from prod:requests | where status == $0\"),])"
+---
+CASE 1: SOURCE_START
+
+SOURCE:
+
+█
+
+COMPLETIONS:
+
+  completions
+   ╭────
+   ╰────
+  help: from
+        compute
+        set
+
+CASE 2: PARAM
+
+SOURCE:
+
+from prod:requests | align █
+
+COMPLETIONS:
+
+  completions
+   ╭────
+ 1 │ from prod:requests | align 
+   ·                           ┬
+   ·                           ╰── 1 completion item(s)
+   ╰────
+  help: $__interval
+
+CASE 3: COMPARISON
+
+SOURCE:
+
+from prod:requests | where status == █
+
+COMPLETIONS:
+
+  completions
+   ╭────
+ 1 │ from prod:requests | where status == 
+   ·                                     ┬
+   ·                                     ╰── 6 completion item(s)
+   ╰────
+  help: true
+        false
+        ""
+        #//
+        0
+        $__interval

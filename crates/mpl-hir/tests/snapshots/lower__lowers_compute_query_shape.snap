@@ -1,0 +1,57 @@
+---
+source: crates/mpl-hir/tests/lower.rs
+expression: "snapshot(r#\"(cpu:usage[1h] | map rate, mem:rss[1h]) | compute total using avg | as total_usage\"#,)"
+---
+INPUT:
+
+(cpu:usage[1h] | map rate, mem:rss[1h]) | compute total using avg | as total_usage
+
+HIR:
+
+HirFile
+├── directives
+╰── query
+    ╰── ComputeQuery
+        ├── inputs
+        │   ├── SimpleQuery
+        │   │   ├── source
+        │   │   │   ╰── Source
+        │   │   │       ├── dataset
+        │   │   │       │   ╰── NameRef "cpu"
+        │   │   │       ├── metric
+        │   │   │       │   ╰── NameRef "usage"
+        │   │   │       ├── time_range
+        │   │   │       │   ╰── TimeRange "1h"
+        │   │   │       ╰── alias: None
+        │   │   ╰── pipes
+        │   │       ╰── MapPipe
+        │   │           ├── function
+        │   │           │   ╰── FunctionCall has_arg_list=false
+        │   │           │       ├── name
+        │   │           │       │   ╰── NameRef "rate"
+        │   │           │       ╰── args
+        │   │           ╰── exprs
+        │   ╰── SimpleQuery
+        │       ├── source
+        │       │   ╰── Source
+        │       │       ├── dataset
+        │       │       │   ╰── NameRef "mem"
+        │       │       ├── metric
+        │       │       │   ╰── NameRef "rss"
+        │       │       ├── time_range
+        │       │       │   ╰── TimeRange "1h"
+        │       │       ╰── alias: None
+        │       ╰── pipes
+        ├── rule
+        │   ╰── ComputeRule
+        │       ├── name
+        │       │   ╰── NameRef "total"
+        │       ╰── function
+        │           ╰── FunctionCall has_arg_list=false
+        │               ├── name
+        │               │   ╰── NameRef "avg"
+        │               ╰── args
+        ╰── pipes
+            ╰── AsPipe
+                ╰── alias
+                    ╰── NameRef "total_usage"

@@ -1,0 +1,34 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "hovers_snapshot(&[(\"function\", \"from prod:requests | map fill::$0const(0)\"),\n(\"keyword\", \"from prod:requests | $0align $__interval using avg\",),])"
+---
+CASE 1: FUNCTION
+
+SOURCE:
+
+from prod:requests | map fill::█const(0)
+
+HOVER:
+
+  hover
+   ╭────
+ 1 │ from prod:requests | map fill::const(0)
+   ·                          ─────┬─────
+   ·                               ╰── fill::const(value)
+   ╰────
+  help: Fill missing values with a constant.
+
+CASE 2: KEYWORD
+
+SOURCE:
+
+from prod:requests | █align $__interval using avg
+
+HOVER:
+
+  hover
+   ╭────
+ 1 │ from prod:requests | align $__interval using avg
+   ·                      ──┬──
+   ·                        ╰── Aligns datapoints into fixed windows using an aggregate function.
+   ╰────

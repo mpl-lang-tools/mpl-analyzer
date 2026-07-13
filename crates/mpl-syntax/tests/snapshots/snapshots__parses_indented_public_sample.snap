@@ -1,0 +1,55 @@
+---
+source: crates/mpl-syntax/tests/snapshots.rs
+expression: "syntax_snapshot(input, &display_cst(parse.syntax()), parse.diagnostics(),)"
+---
+INPUT:
+
+test:http_requests_total
+  | filter status == 500
+  | align to 5m using avg
+
+CST:
+
+Root
+├── SimpleQuery
+│   ├── Source
+│   │   ├── NameRef
+│   │   │   ╰── Ident "test"
+│   │   ├── Colon ":"
+│   │   ╰── NameRef
+│   │       ╰── Ident "http_requests_total"
+│   ├── Whitespace "\n  "
+│   ├── WherePipe
+│   │   ├── Pipe "|"
+│   │   ├── Whitespace " "
+│   │   ├── Keyword "filter"
+│   │   ╰── CompareExpr
+│   │       ├── Whitespace " "
+│   │       ├── NameRef
+│   │       │   ╰── Ident "status"
+│   │       ├── Whitespace " "
+│   │       ├── Cmp "=="
+│   │       ├── Whitespace " "
+│   │       ╰── NumberExpr
+│   │           ╰── Number "500"
+│   ├── Whitespace "\n  "
+│   ╰── AlignPipe
+│       ├── Pipe "|"
+│       ├── Whitespace " "
+│       ├── Keyword "align"
+│       ├── Whitespace " "
+│       ├── Keyword "to"
+│       ├── Whitespace " "
+│       ├── DurationExpr
+│       │   ╰── Duration "5m"
+│       ├── Whitespace " "
+│       ├── Keyword "using"
+│       ├── Whitespace " "
+│       ╰── FunctionCall
+│           ╰── NameRef
+│               ╰── Ident "avg"
+╰── Whitespace "\n"
+
+DIAGNOSTICS:
+
+No diagnostics.

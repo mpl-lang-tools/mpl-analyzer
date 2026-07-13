@@ -1,0 +1,16 @@
+[package]
+name = "mpl-ide"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+
+[dependencies]
+mpl-hir.workspace = true
+mpl-syntax.workspace = true
+serde.workspace = true
+
+[dev-dependencies]
+insta.workspace = true
+miette.workspace = true

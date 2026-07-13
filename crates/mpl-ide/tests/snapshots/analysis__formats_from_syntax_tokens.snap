@@ -1,0 +1,12 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "format_snapshot(input, &format(input))"
+---
+INPUT:
+
+from prod:requests|align $__interval using avg;
+
+OUTPUT:
+
+from prod:requests
+| align $__interval using avg;

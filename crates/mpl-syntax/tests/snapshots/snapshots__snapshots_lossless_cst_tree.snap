@@ -1,0 +1,79 @@
+---
+source: crates/mpl-syntax/tests/snapshots.rs
+expression: "syntax_snapshot(input, &display_cst(parse.syntax()), parse.diagnostics(),)"
+---
+INPUT:
+
+// leading
+set custom_unit = "ms";
+http:request_duration[5m] as latency
+| where service == "api"
+| map fill::const(0)
+
+CST:
+
+Root
+├── Comment "// leading"
+├── Whitespace "\n"
+├── Directive
+│   ├── Keyword "set"
+│   ├── Whitespace " "
+│   ├── NameRef
+│   │   ╰── Ident "custom_unit"
+│   ├── Whitespace " "
+│   ├── Eq "="
+│   ├── Whitespace " "
+│   ├── StringExpr
+│   │   ╰── String "\"ms\""
+│   ╰── Semicolon ";"
+├── Whitespace "\n"
+├── SimpleQuery
+│   ├── Source
+│   │   ├── NameRef
+│   │   │   ╰── Ident "http"
+│   │   ├── Colon ":"
+│   │   ├── NameRef
+│   │   │   ╰── Ident "request_duration"
+│   │   ├── TimeRange
+│   │   │   ├── LBracket "["
+│   │   │   ├── Duration "5m"
+│   │   │   ╰── RBracket "]"
+│   │   ├── Whitespace " "
+│   │   ├── Keyword "as"
+│   │   ├── Whitespace " "
+│   │   ╰── NameRef
+│   │       ╰── Ident "latency"
+│   ├── Whitespace "\n"
+│   ├── WherePipe
+│   │   ├── Pipe "|"
+│   │   ├── Whitespace " "
+│   │   ├── Keyword "where"
+│   │   ╰── CompareExpr
+│   │       ├── Whitespace " "
+│   │       ├── NameRef
+│   │       │   ╰── Ident "service"
+│   │       ├── Whitespace " "
+│   │       ├── Cmp "=="
+│   │       ├── Whitespace " "
+│   │       ╰── StringExpr
+│   │           ╰── String "\"api\""
+│   ├── Whitespace "\n"
+│   ╰── MapPipe
+│       ├── Pipe "|"
+│       ├── Whitespace " "
+│       ├── Keyword "map"
+│       ├── Whitespace " "
+│       ╰── FunctionCall
+│           ├── NameRef
+│           │   ├── Ident "fill"
+│           │   ├── DoubleColon "::"
+│           │   ╰── Ident "const"
+│           ├── LParen "("
+│           ├── NumberExpr
+│           │   ╰── Number "0"
+│           ╰── RParen ")"
+╰── Whitespace "\n"
+
+DIAGNOSTICS:
+
+No diagnostics.

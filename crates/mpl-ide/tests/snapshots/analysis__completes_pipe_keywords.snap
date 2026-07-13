@@ -1,0 +1,26 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "completions_snapshot(&[(\"pipe_keywords\", \"from prod:requests | $0\",)])"
+---
+CASE 1: PIPE_KEYWORDS
+
+SOURCE:
+
+from prod:requests | █
+
+COMPLETIONS:
+
+  completions
+   ╭────
+ 1 │ from prod:requests | 
+   ·                     ┬
+   ·                     ╰── 8 completion item(s)
+   ╰────
+  help: where
+        filter
+        map
+        align
+        group
+        bucket
+        extend
+        as

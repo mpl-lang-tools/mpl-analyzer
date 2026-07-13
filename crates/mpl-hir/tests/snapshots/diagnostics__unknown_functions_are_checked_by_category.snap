@@ -1,0 +1,92 @@
+---
+source: crates/mpl-hir/tests/diagnostics.rs
+expression: "snapshot(r#\"(dataset:metric\n  | map avg\n  | align using filter::lt\n  | group by host using prom::rate\n  | bucket using sum\n) | compute total using rate\n\"#,)"
+---
+INPUT:
+
+(dataset:metric
+  | map avg
+  | align using filter::lt
+  | group by host using prom::rate
+  | bucket using sum
+) | compute total using rate
+
+DIAGNOSTICS:
+
+1. Error: unknown map function `avg`
+2. Error: unknown align function `filter::lt`
+3. Error: unknown group function `prom::rate`
+4. Error: unknown bucket function `sum`
+5. Error: unknown compute function `rate`
+
+REPORTS:
+
+REPORT 1:
+
+  × unknown map function `avg`
+   ╭─[2:9]
+ 1 │ (dataset:metric
+ 2 │   | map avg
+   ·         ─┬─
+   ·          ╰── unknown map function `avg`
+ 3 │   | align using filter::lt
+ 4 │   | group by host using prom::rate
+ 5 │   | bucket using sum
+ 6 │ ) | compute total using rate
+   ╰────
+
+REPORT 2:
+
+  × unknown align function `filter::lt`
+   ╭─[3:17]
+ 1 │ (dataset:metric
+ 2 │   | map avg
+ 3 │   | align using filter::lt
+   ·                 ─────┬────
+   ·                      ╰── unknown align function `filter::lt`
+ 4 │   | group by host using prom::rate
+ 5 │   | bucket using sum
+ 6 │ ) | compute total using rate
+   ╰────
+
+REPORT 3:
+
+  × unknown group function `prom::rate`
+   ╭─[4:25]
+ 1 │ (dataset:metric
+ 2 │   | map avg
+ 3 │   | align using filter::lt
+ 4 │   | group by host using prom::rate
+   ·                         ─────┬────
+   ·                              ╰── unknown group function `prom::rate`
+ 5 │   | bucket using sum
+ 6 │ ) | compute total using rate
+   ╰────
+
+REPORT 4:
+
+  × unknown bucket function `sum`
+   ╭─[5:18]
+ 1 │ (dataset:metric
+ 2 │   | map avg
+ 3 │   | align using filter::lt
+ 4 │   | group by host using prom::rate
+ 5 │   | bucket using sum
+   ·                  ─┬─
+   ·                   ╰── unknown bucket function `sum`
+ 6 │ ) | compute total using rate
+   ╰────
+
+REPORT 5:
+
+  × unknown compute function `rate`
+   ╭─[6:25]
+ 1 │ (dataset:metric
+ 2 │   | map avg
+ 3 │   | align using filter::lt
+ 4 │   | group by host using prom::rate
+ 5 │   | bucket using sum
+ 6 │ ) | compute total using rate
+   ·                         ──┬─
+   ·                           ╰── unknown compute function `rate`
+   ╰────

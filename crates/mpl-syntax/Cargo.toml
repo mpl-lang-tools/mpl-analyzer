@@ -1,0 +1,17 @@
+[package]
+name = "mpl-syntax"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+
+[dependencies]
+rowan = "0.16.1"
+serde.workspace = true
+
+[dev-dependencies]
+display_tree.workspace = true
+insta.workspace = true
+miette.workspace = true
+ron.workspace   = true

@@ -1,0 +1,32 @@
+---
+source: crates/mpl-syntax/tests/snapshots.rs
+expression: "wrapper_snapshot(input, parse.tree().directives().count(),\nparse.tree().queries().count(), &names, &functions,\n&parse.syntax().text().to_string(),)"
+---
+INPUT:
+
+http:request_duration[5m] as latency
+| where service == "api"
+| map fill::const(0)
+
+COUNTS:
+
+directives: 0
+queries: 1
+
+NAMES:
+
+  http
+  request_duration
+  latency
+  service
+  fill::const
+
+FUNCTIONS:
+
+  fill::const
+
+ROUNDTRIP:
+
+http:request_duration[5m] as latency
+| where service == "api"
+| map fill::const(0)

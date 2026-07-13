@@ -1,0 +1,18 @@
+---
+source: crates/mpl-syntax/tests/snapshots.rs
+expression: "format_snapshot(input, &format_source(input))"
+---
+INPUT:
+
+// leading
+set   custom_unit="ms"; http:request_duration [ 5m ] as latency |where service=="api"|map fill::const(0)// tail
+| extend slo=99.9,matcher=#/api/
+
+OUTPUT:
+
+// leading
+set custom_unit = "ms";
+http:request_duration[5m] as latency
+| where service == "api"
+| map fill::const(0) // tail
+| extend slo = 99.9, matcher = #/api/

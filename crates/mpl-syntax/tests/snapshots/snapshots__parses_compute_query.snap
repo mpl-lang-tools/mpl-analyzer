@@ -1,0 +1,73 @@
+---
+source: crates/mpl-syntax/tests/snapshots.rs
+expression: "syntax_snapshot(input, &display_cst(parse.syntax()), parse.diagnostics(),)"
+---
+INPUT:
+
+(cpu:usage[1h] | map rate, mem:rss[1h]) | compute total using avg | as total_usage
+
+CST:
+
+Root
+╰── ComputeQuery
+    ├── LParen "("
+    ├── SimpleQuery
+    │   ├── Source
+    │   │   ├── NameRef
+    │   │   │   ╰── Ident "cpu"
+    │   │   ├── Colon ":"
+    │   │   ├── NameRef
+    │   │   │   ╰── Ident "usage"
+    │   │   ╰── TimeRange
+    │   │       ├── LBracket "["
+    │   │       ├── Duration "1h"
+    │   │       ╰── RBracket "]"
+    │   ├── Whitespace " "
+    │   ╰── MapPipe
+    │       ├── Pipe "|"
+    │       ├── Whitespace " "
+    │       ├── Keyword "map"
+    │       ├── Whitespace " "
+    │       ╰── FunctionCall
+    │           ╰── NameRef
+    │               ╰── Ident "rate"
+    ├── Comma ","
+    ├── Whitespace " "
+    ├── SimpleQuery
+    │   ╰── Source
+    │       ├── NameRef
+    │       │   ╰── Ident "mem"
+    │       ├── Colon ":"
+    │       ├── NameRef
+    │       │   ╰── Ident "rss"
+    │       ╰── TimeRange
+    │           ├── LBracket "["
+    │           ├── Duration "1h"
+    │           ╰── RBracket "]"
+    ├── RParen ")"
+    ├── Whitespace " "
+    ├── ComputeRule
+    │   ├── Pipe "|"
+    │   ├── Whitespace " "
+    │   ├── Keyword "compute"
+    │   ├── Whitespace " "
+    │   ├── NameRef
+    │   │   ╰── Ident "total"
+    │   ├── Whitespace " "
+    │   ├── Keyword "using"
+    │   ├── Whitespace " "
+    │   ╰── FunctionCall
+    │       ╰── NameRef
+    │           ╰── Ident "avg"
+    ├── Whitespace " "
+    ╰── AsPipe
+        ├── Pipe "|"
+        ├── Whitespace " "
+        ├── Keyword "as"
+        ├── Whitespace " "
+        ╰── NameRef
+            ╰── Ident "total_usage"
+
+DIAGNOSTICS:
+
+No diagnostics.

@@ -1,0 +1,136 @@
+---
+source: crates/mpl-hir/tests/diagnostics.rs
+expression: "snapshot(r#\"set timezone = \"UTC\";\n| filter status == 500\n| sample\n| map bogus\n| align to $__interval\n| extend step = $custom\n\"#,)"
+---
+INPUT:
+
+set timezone = "UTC";
+| filter status == 500
+| sample
+| map bogus
+| align to $__interval
+| extend step = $custom
+
+DIAGNOSTICS:
+
+1. Error: unknown pipe operator
+2. Error: unsupported set directive `timezone`; only `custom_unit` is supported
+3. Error: missing source
+4. Hint: `filter` is deprecated; use `where`
+5. Error: unknown pipe keyword `sample`
+6. Error: unknown map function `bogus`
+7. Error: missing `using` function for align
+8. Error: unknown parameter `$custom`
+
+REPORTS:
+
+REPORT 1:
+
+  × unknown pipe operator
+   ╭─[4:1]
+ 1 │ set timezone = "UTC";
+ 2 │ | filter status == 500
+ 3 │ | sample
+ 4 │ | map bogus
+   · ┬
+   · ╰── unknown pipe operator
+ 5 │ | align to $__interval
+ 6 │ | extend step = $custom
+   ╰────
+
+REPORT 2:
+
+  × unsupported set directive `timezone`; only `custom_unit` is supported
+   ╭─[1:1]
+ 1 │ set timezone = "UTC";
+   · ──────────┬──────────
+   ·           ╰── unsupported set directive `timezone`; only `custom_unit` is supported
+ 2 │ | filter status == 500
+ 3 │ | sample
+ 4 │ | map bogus
+ 5 │ | align to $__interval
+ 6 │ | extend step = $custom
+   ╰────
+
+REPORT 3:
+
+  × missing source
+   ╭─[2:1]
+ 1 │     set timezone = "UTC";
+ 2 │ ╭─▶ | filter status == 500
+ 3 │ │   | sample
+ 4 │ │   | map bogus
+ 5 │ │   | align to $__interval
+ 6 │ ├─▶ | extend step = $custom
+   · ╰──── missing source
+   ╰────
+
+REPORT 4:
+
+  `filter` is deprecated; use `where`
+   ╭─[2:1]
+ 1 │ set timezone = "UTC";
+ 2 │ | filter status == 500
+   · ───────────┬──────────
+   ·            ╰── `filter` is deprecated; use `where`
+ 3 │ | sample
+ 4 │ | map bogus
+ 5 │ | align to $__interval
+ 6 │ | extend step = $custom
+   ╰────
+
+REPORT 5:
+
+  × unknown pipe keyword `sample`
+   ╭─[3:1]
+ 1 │ set timezone = "UTC";
+ 2 │ | filter status == 500
+ 3 │ | sample
+   · ────┬───
+   ·     ╰── unknown pipe keyword `sample`
+ 4 │ | map bogus
+ 5 │ | align to $__interval
+ 6 │ | extend step = $custom
+   ╰────
+
+REPORT 6:
+
+  × unknown map function `bogus`
+   ╭─[4:7]
+ 1 │ set timezone = "UTC";
+ 2 │ | filter status == 500
+ 3 │ | sample
+ 4 │ | map bogus
+   ·       ──┬──
+   ·         ╰── unknown map function `bogus`
+ 5 │ | align to $__interval
+ 6 │ | extend step = $custom
+   ╰────
+
+REPORT 7:
+
+  × missing `using` function for align
+   ╭─[5:1]
+ 1 │ set timezone = "UTC";
+ 2 │ | filter status == 500
+ 3 │ | sample
+ 4 │ | map bogus
+ 5 │ | align to $__interval
+   · ───────────┬──────────
+   ·            ╰── missing `using` function for align
+ 6 │ | extend step = $custom
+   ╰────
+
+REPORT 8:
+
+  × unknown parameter `$custom`
+   ╭─[6:17]
+ 1 │ set timezone = "UTC";
+ 2 │ | filter status == 500
+ 3 │ | sample
+ 4 │ | map bogus
+ 5 │ | align to $__interval
+ 6 │ | extend step = $custom
+   ·                 ───┬───
+   ·                    ╰── unknown parameter `$custom`
+   ╰────

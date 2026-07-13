@@ -1,0 +1,17 @@
+[package]
+name = "mpl-hir"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+
+[dependencies]
+mpl-syntax.workspace = true
+serde.workspace = true
+
+[dev-dependencies]
+display_tree.workspace = true
+insta.workspace = true
+miette.workspace = true
+ron.workspace   = true

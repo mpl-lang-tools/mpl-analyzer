@@ -1,0 +1,88 @@
+---
+source: crates/mpl-syntax/tests/snapshots.rs
+expression: "syntax_snapshot(input, &display_cst(parse.syntax()), parse.diagnostics(),)"
+---
+INPUT:
+
+set custom_unit = "ms";
+http:request_duration[5m]
+| where service "api"
+| extend label
+
+CST:
+
+Root
+├── Directive
+│   ├── Keyword "set"
+│   ├── Whitespace " "
+│   ├── NameRef
+│   │   ╰── Ident "custom_unit"
+│   ├── Whitespace " "
+│   ├── Eq "="
+│   ├── Whitespace " "
+│   ├── StringExpr
+│   │   ╰── String "\"ms\""
+│   ╰── Semicolon ";"
+├── Whitespace "\n"
+├── SimpleQuery
+│   ├── Source
+│   │   ├── NameRef
+│   │   │   ╰── Ident "http"
+│   │   ├── Colon ":"
+│   │   ├── NameRef
+│   │   │   ╰── Ident "request_duration"
+│   │   ╰── TimeRange
+│   │       ├── LBracket "["
+│   │       ├── Duration "5m"
+│   │       ╰── RBracket "]"
+│   ├── Whitespace "\n"
+│   ├── WherePipe
+│   │   ├── Pipe "|"
+│   │   ├── Whitespace " "
+│   │   ├── Keyword "where"
+│   │   ╰── MissingExpr
+│   │       ├── Whitespace " "
+│   │       ├── NameRef
+│   │       │   ╰── Ident "service"
+│   │       ├── Whitespace " "
+│   │       ╰── StringExpr
+│   │           ╰── String "\"api\""
+│   ├── Whitespace "\n"
+│   ╰── ExtendPipe
+│       ├── Pipe "|"
+│       ├── Whitespace " "
+│       ├── Keyword "extend"
+│       ├── Whitespace " "
+│       ╰── Assignment
+│           ╰── NameRef
+│               ╰── Ident "label"
+╰── Whitespace "\n"
+
+DIAGNOSTICS:
+
+1. Error: expected comparison operator
+2. Error: expected `=` in assignment
+
+REPORTS:
+
+REPORT 1:
+
+  × expected comparison operator
+   ╭─[3:17]
+ 1 │ set custom_unit = "ms";
+ 2 │ http:request_duration[5m]
+ 3 │ | where service "api"
+   ·                 ──┬──
+   ·                   ╰── expected comparison operator
+ 4 │ | extend label
+   ╰────
+
+REPORT 2:
+
+  × expected `=` in assignment
+   ╭─[5:1]
+ 1 │ set custom_unit = "ms";
+ 2 │ http:request_duration[5m]
+ 3 │ | where service "api"
+ 4 │ | extend label
+   ╰────
