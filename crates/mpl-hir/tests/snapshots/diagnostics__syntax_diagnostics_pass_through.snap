@@ -1,5 +1,6 @@
 ---
 source: crates/mpl-hir/tests/diagnostics.rs
+assertion_line: 135
 expression: "snapshot(\"dataset:\")"
 ---
 INPUT:
@@ -8,23 +9,13 @@ dataset:
 
 DIAGNOSTICS:
 
-1. Error: expected metric name after `:`
-2. Error: missing source metric
+1. Error: MPL syntax error: unexpected token or operation
 
 REPORTS:
 
 REPORT 1:
 
-  × expected metric name after `:`
+  × MPL syntax error: unexpected token or operation
    ╭────
  1 │ dataset:
-   ╰────
-
-REPORT 2:
-
-  × missing source metric
-   ╭────
- 1 │ dataset:
-   · ────┬───
-   ·     ╰── missing source metric
    ╰────

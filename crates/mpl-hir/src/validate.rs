@@ -5,9 +5,11 @@
 //! functions, deprecated constructs, and invalid parameters. Diagnostics carry
 //! source ranges copied during lowering.
 
+use std::collections::HashSet;
+
 use serde::Serialize;
 
-use mpl_syntax::{Parse, SourceFileNode, TextRange};
+use mpl_syntax::{Parse, SourceFileNode, TextRange, TokenKind, lex};
 
 use crate::lower::lower;
 use crate::model::{
@@ -33,12 +35,25 @@ pub struct Diagnostic {
 
 pub fn validate(parse: &Parse<SourceFileNode>) -> Vec<Diagnostic> {
     let diagnostics = syntax_diagnostics(parse);
+    if !diagnostics.is_empty() {
+        return diagnostics;
+    }
+
+    let source = parse.syntax().text().to_string();
+    let declared_params = declared_params(&source);
     let file = lower(parse);
-    validate_hir(&file, diagnostics)
+    validate_hir(&file, diagnostics, declared_params)
 }
 
-fn validate_hir(file: &HirFile, diagnostics: Vec<Diagnostic>) -> Vec<Diagnostic> {
-    let mut validator = Validator { diagnostics };
+fn validate_hir(
+    file: &HirFile,
+    diagnostics: Vec<Diagnostic>,
+    declared_params: HashSet<String>,
+) -> Vec<Diagnostic> {
+    let mut validator = Validator {
+        diagnostics,
+        declared_params,
+    };
     validator.validate_file(file);
     validator.diagnostics
 }
@@ -47,9 +62,10 @@ fn syntax_diagnostics(parse: &Parse<SourceFileNode>) -> Vec<Diagnostic> {
     parse
         .diagnostics()
         .iter()
+        .take(1)
         .map(|diag| Diagnostic {
             severity: Severity::Error,
-            message: diag.message.clone(),
+            message: "MPL syntax error: unexpected token or operation".to_string(),
             range: diag.range,
         })
         .collect()
@@ -57,6 +73,7 @@ fn syntax_diagnostics(parse: &Parse<SourceFileNode>) -> Vec<Diagnostic> {
 
 struct Validator {
     diagnostics: Vec<Diagnostic>,
+    declared_params: HashSet<String>,
 }
 
 impl Validator {
@@ -71,28 +88,6 @@ impl Validator {
     }
 
     fn validate_directive(&mut self, directive: &Directive) {
-        let name_text = directive
-            .name
-            .as_ref()
-            .map(|name| name.text.as_str())
-            .unwrap_or_default();
-
-        if name_text != "custom_unit" {
-            if name_text.is_empty() {
-                self.error(
-                    directive.range,
-                    "unsupported set directive; only `custom_unit` is supported",
-                );
-            } else {
-                self.error(
-                    directive.range,
-                    format!(
-                        "unsupported set directive `{name_text}`; only `custom_unit` is supported"
-                    ),
-                );
-            }
-        }
-
         if let Some(value) = &directive.value {
             self.validate_expr(value);
         }
@@ -146,10 +141,6 @@ impl Validator {
     fn validate_pipe(&mut self, pipe: &Pipe) {
         match pipe {
             Pipe::Where(pipe) => {
-                if pipe.keyword.as_deref() == Some("filter") {
-                    self.hint(pipe.range, "`filter` is deprecated; use `where`");
-                }
-
                 for predicate in &pipe.predicates {
                     self.validate_expr(predicate);
                 }
@@ -165,11 +156,7 @@ impl Validator {
             }
             Pipe::As(_) => {}
             Pipe::Unknown(pipe) => {
-                if let Some(keyword) = &pipe.keyword {
-                    self.error(pipe.range, format!("unknown pipe keyword `{keyword}`"));
-                } else {
-                    self.error(pipe.range, "unknown pipe keyword");
-                }
+                let _ = pipe;
             }
         }
     }
@@ -234,7 +221,11 @@ impl Validator {
         if !stdlib::is_function(kind, &function.name.text) {
             self.error(
                 function.name.range,
-                format!("unknown {} function `{}`", kind.name(), function.name.text),
+                format!(
+                    "Unsupported {} function: {}",
+                    kind.name(),
+                    function.name.text
+                ),
             );
         }
 
@@ -246,7 +237,9 @@ impl Validator {
     fn validate_expr(&mut self, expr: &Expr) {
         match expr {
             Expr::Param { name, .. } => {
-                if !stdlib::is_builtin_param(&name.text) {
+                if !stdlib::is_builtin_param(&name.text)
+                    && !self.declared_params.contains(&normalise_param(&name.text))
+                {
                     self.error(name.range, format!("unknown parameter `{}`", name.text));
                 }
             }
@@ -274,15 +267,41 @@ impl Validator {
         self.push(Severity::Error, range, message);
     }
 
-    fn hint(&mut self, range: TextRange, message: impl Into<String>) {
-        self.push(Severity::Hint, range, message);
-    }
-
     fn push(&mut self, severity: Severity, range: TextRange, message: impl Into<String>) {
         self.diagnostics.push(Diagnostic {
             severity,
             message: message.into(),
             range,
         });
+    }
+}
+
+fn declared_params(input: &str) -> HashSet<String> {
+    let tokens = lex(input);
+    let mut params = HashSet::new();
+    let mut iter = tokens
+        .iter()
+        .filter(|token| !matches!(token.kind, TokenKind::Whitespace | TokenKind::Comment))
+        .peekable();
+
+    while let Some(token) = iter.next() {
+        if token.kind == TokenKind::Keyword && token.text == "param" {
+            if let Some(param) = iter.next_if(|token| token.kind == TokenKind::Param) {
+                params.insert(normalise_param(&param.text));
+            }
+        }
+    }
+
+    params
+}
+
+fn normalise_param(text: &str) -> String {
+    if let Some(inner) = text
+        .strip_prefix("$`")
+        .and_then(|text| text.strip_suffix('`'))
+    {
+        format!("${inner}")
+    } else {
+        text.to_string()
     }
 }

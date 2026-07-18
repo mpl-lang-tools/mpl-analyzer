@@ -191,7 +191,10 @@ impl Lexer<'_> {
             }
             b'+' => {
                 self.pos += 1;
-                if self.peek(0).is_some_and(|c| c.is_ascii_digit()) {
+                if self.peek_word(0, b"inf") {
+                    self.pos += 3;
+                    TokenKind::Number
+                } else if self.peek(0).is_some_and(|c| c.is_ascii_digit()) {
                     self.bump_number_tail();
                     classify_number(&self.input[start..self.pos])
                 } else {
@@ -200,7 +203,10 @@ impl Lexer<'_> {
             }
             b'-' => {
                 self.pos += 1;
-                if self.peek(0).is_some_and(|c| c.is_ascii_digit()) {
+                if self.peek_word(0, b"inf") {
+                    self.pos += 3;
+                    TokenKind::Number
+                } else if self.peek(0).is_some_and(|c| c.is_ascii_digit()) {
                     self.bump_number_tail();
                     classify_number(&self.input[start..self.pos])
                 } else {
@@ -229,6 +235,13 @@ impl Lexer<'_> {
 
     fn peek(&self, offset: usize) -> Option<u8> {
         self.input.as_bytes().get(self.pos + offset).copied()
+    }
+
+    fn peek_word(&self, offset: usize, word: &[u8]) -> bool {
+        self.input
+            .as_bytes()
+            .get(self.pos + offset..self.pos + offset + word.len())
+            == Some(word)
     }
 
     fn bump_while(&mut self, mut pred: impl FnMut(u8) -> bool) {
@@ -299,10 +312,9 @@ impl Lexer<'_> {
                 .count())..self.pos]
         {
             "true" | "false" => TokenKind::Bool,
-            "set" | "where" | "filter" | "map" | "align" | "group" | "bucket" | "extend"
-            | "compute" | "using" | "to" | "by" | "as" | "and" | "or" | "not" | "is" | "from" => {
-                TokenKind::Keyword
-            }
+            "set" | "param" | "where" | "filter" | "map" | "align" | "group" | "bucket"
+            | "extend" | "compute" | "using" | "to" | "over" | "by" | "as" | "ifdef" | "else"
+            | "and" | "or" | "not" | "is" | "from" | "sample" => TokenKind::Keyword,
             "inf" => TokenKind::Number,
             _ => TokenKind::Ident,
         }

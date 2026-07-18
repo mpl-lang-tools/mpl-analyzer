@@ -7,6 +7,8 @@ INPUT:
 set custom_unit = "ms";
 dataset:metric
   | map fill::const(0)
+  | map filter::gt(150)
+  | map is::ge(0.95)
   | align to $__interval using avg
   | bucket by host using histogram
 

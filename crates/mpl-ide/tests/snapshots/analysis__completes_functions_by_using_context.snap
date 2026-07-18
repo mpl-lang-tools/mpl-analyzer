@@ -96,7 +96,7 @@ COMPLETIONS:
    ╭────
  1 │ from prod:requests | map using 
    ·                               ┬
-   ·                               ╰── 7 completion item(s)
+   ·                               ╰── 17 completion item(s)
    ╰────
   help: rate
         increase
@@ -104,7 +104,17 @@ COMPLETIONS:
         fill::prev
         fill::const
         filter::lt
+        filter::gt
+        filter::eq
+        filter::ne
+        filter::ge
+        filter::le
         is::lt
+        is::gt
+        is::eq
+        is::ne
+        is::ge
+        is::le
 
 CASE 6: MAP_DIRECT
 
@@ -118,7 +128,7 @@ COMPLETIONS:
    ╭────
  1 │ from prod:requests | map 
    ·                         ┬
-   ·                         ╰── 7 completion item(s)
+   ·                         ╰── 17 completion item(s)
    ╰────
   help: rate
         increase
@@ -126,4 +136,14 @@ COMPLETIONS:
         fill::prev
         fill::const
         filter::lt
+        filter::gt
+        filter::eq
+        filter::ne
+        filter::ge
+        filter::le
         is::lt
+        is::gt
+        is::eq
+        is::ne
+        is::ge
+        is::le

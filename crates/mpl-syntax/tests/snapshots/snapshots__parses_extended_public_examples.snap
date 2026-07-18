@@ -1,0 +1,176 @@
+---
+source: crates/mpl-syntax/tests/snapshots.rs
+assertion_line: 319
+expression: "syntax_snapshot(input, &display_cst(parse.syntax()), parse.diagnostics(),)"
+---
+INPUT:
+
+param $dataset: Dataset;
+param $duration: Duration;
+param $tag: Option<string>;
+set no_arg;
+set string_arg = "Hello, World!";
+
+$dataset:metric
+| ifdef($tag) { where __tag == $tag } else { where __tag == "default" }
+| sample
+| where i1 == inf and i2 == -inf and i3 == +inf
+| align to $duration over 7d using avg
+
+CST:
+
+Root
+├── Keyword "param"
+├── Whitespace " "
+├── Param "$dataset"
+├── Colon ":"
+├── Whitespace " "
+├── Ident "Dataset"
+├── Semicolon ";"
+├── Whitespace "\n"
+├── Keyword "param"
+├── Whitespace " "
+├── Param "$duration"
+├── Colon ":"
+├── Whitespace " "
+├── Ident "Duration"
+├── Semicolon ";"
+├── Whitespace "\n"
+├── Keyword "param"
+├── Whitespace " "
+├── Param "$tag"
+├── Colon ":"
+├── Whitespace " "
+├── Ident "Option"
+├── Cmp "<"
+├── Ident "string"
+├── Cmp ">"
+├── Semicolon ";"
+├── Whitespace "\n"
+├── Directive
+│   ├── Keyword "set"
+│   ├── Whitespace " "
+│   ├── NameRef
+│   │   ╰── Ident "no_arg"
+│   ╰── Semicolon ";"
+├── Whitespace "\n"
+├── Directive
+│   ├── Keyword "set"
+│   ├── Whitespace " "
+│   ├── NameRef
+│   │   ╰── Ident "string_arg"
+│   ├── Whitespace " "
+│   ├── Eq "="
+│   ├── Whitespace " "
+│   ├── StringExpr
+│   │   ╰── String "\"Hello, World!\""
+│   ╰── Semicolon ";"
+├── Whitespace "\n\n"
+├── SimpleQuery
+│   ├── Source
+│   │   ├── NameRef
+│   │   │   ╰── Param "$dataset"
+│   │   ├── Colon ":"
+│   │   ╰── NameRef
+│   │       ╰── Ident "metric"
+│   ├── Whitespace "\n"
+│   ├── MapPipe
+│   │   ├── Pipe "|"
+│   │   ├── Whitespace " "
+│   │   ├── Keyword "ifdef"
+│   │   ├── LParen "("
+│   │   ├── Param "$tag"
+│   │   ├── RParen ")"
+│   │   ├── Whitespace " "
+│   │   ├── LBrace "{"
+│   │   ├── Whitespace " "
+│   │   ├── Keyword "where"
+│   │   ├── Whitespace " "
+│   │   ├── Ident "__tag"
+│   │   ├── Whitespace " "
+│   │   ├── Cmp "=="
+│   │   ├── Whitespace " "
+│   │   ├── Param "$tag"
+│   │   ├── Whitespace " "
+│   │   ├── RBrace "}"
+│   │   ├── Whitespace " "
+│   │   ├── Keyword "else"
+│   │   ├── Whitespace " "
+│   │   ├── LBrace "{"
+│   │   ├── Whitespace " "
+│   │   ├── Keyword "where"
+│   │   ├── Whitespace " "
+│   │   ├── Ident "__tag"
+│   │   ├── Whitespace " "
+│   │   ├── Cmp "=="
+│   │   ├── Whitespace " "
+│   │   ├── String "\"default\""
+│   │   ├── Whitespace " "
+│   │   ╰── RBrace "}"
+│   ├── Whitespace "\n"
+│   ├── MapPipe
+│   │   ├── Pipe "|"
+│   │   ├── Whitespace " "
+│   │   ╰── Keyword "sample"
+│   ├── Whitespace "\n"
+│   ├── WherePipe
+│   │   ├── Pipe "|"
+│   │   ├── Whitespace " "
+│   │   ├── Keyword "where"
+│   │   ├── CompareExpr
+│   │   │   ├── Whitespace " "
+│   │   │   ├── NameRef
+│   │   │   │   ╰── Ident "i1"
+│   │   │   ├── Whitespace " "
+│   │   │   ├── Cmp "=="
+│   │   │   ├── Whitespace " "
+│   │   │   ╰── NumberExpr
+│   │   │       ╰── Number "inf"
+│   │   ├── Whitespace " "
+│   │   ├── Keyword "and"
+│   │   ├── CompareExpr
+│   │   │   ├── Whitespace " "
+│   │   │   ├── NameRef
+│   │   │   │   ╰── Ident "i2"
+│   │   │   ├── Whitespace " "
+│   │   │   ├── Cmp "=="
+│   │   │   ├── Whitespace " "
+│   │   │   ╰── NumberExpr
+│   │   │       ╰── Number "-inf"
+│   │   ├── Whitespace " "
+│   │   ├── Keyword "and"
+│   │   ╰── CompareExpr
+│   │       ├── Whitespace " "
+│   │       ├── NameRef
+│   │       │   ╰── Ident "i3"
+│   │       ├── Whitespace " "
+│   │       ├── Cmp "=="
+│   │       ├── Whitespace " "
+│   │       ╰── NumberExpr
+│   │           ╰── Number "+inf"
+│   ├── Whitespace "\n"
+│   ╰── AlignPipe
+│       ├── Pipe "|"
+│       ├── Whitespace " "
+│       ├── Keyword "align"
+│       ├── Whitespace " "
+│       ├── Keyword "to"
+│       ├── Whitespace " "
+│       ├── ParamExpr
+│       │   ╰── Param "$duration"
+│       ├── Whitespace " "
+│       ├── Keyword "over"
+│       ├── Whitespace " "
+│       ├── DurationExpr
+│       │   ╰── Duration "7d"
+│       ├── Whitespace " "
+│       ├── Keyword "using"
+│       ├── Whitespace " "
+│       ╰── FunctionCall
+│           ╰── NameRef
+│               ╰── Ident "avg"
+╰── Whitespace "\n"
+
+DIAGNOSTICS:
+
+No diagnostics.

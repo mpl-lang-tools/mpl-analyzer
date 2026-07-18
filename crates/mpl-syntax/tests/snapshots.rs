@@ -301,6 +301,29 @@ fn parses_compute_query() {
 }
 
 #[test]
+fn parses_extended_public_examples() {
+    let input = r#"param $dataset: Dataset;
+param $duration: Duration;
+param $tag: Option<string>;
+set no_arg;
+set string_arg = "Hello, World!";
+
+$dataset:metric
+| ifdef($tag) { where __tag == $tag } else { where __tag == "default" }
+| sample
+| where i1 == inf and i2 == -inf and i3 == +inf
+| align to $duration over 7d using avg
+"#;
+
+    let parse = parse(input);
+    insta::assert_snapshot!(syntax_snapshot(
+        input,
+        &display_cst(parse.syntax()),
+        parse.diagnostics(),
+    ));
+}
+
+#[test]
 fn reports_recovery_diagnostics() {
     let input = r#"set custom_unit = "ms";
 http:request_duration[5m]

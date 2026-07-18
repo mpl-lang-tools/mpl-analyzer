@@ -104,8 +104,12 @@ impl Parser {
     fn parse_file(&mut self) {
         let m = self.start_node(SyntaxKind::Root);
         self.bump_trivia();
-        while self.at_keyword("set") {
-            self.parse_directive();
+        while self.at_keyword("set") || self.at_keyword("param") {
+            if self.at_keyword("set") {
+                self.parse_directive();
+            } else {
+                self.parse_param_declaration();
+            }
             self.bump_trivia();
         }
 
@@ -135,12 +139,7 @@ impl Parser {
             self.error_here("expected directive name");
             String::new()
         });
-        let value = if self.eat(TokenKind::Eq).is_some() {
-            Some(self.parse_expr())
-        } else {
-            self.error_here("expected `=` in directive");
-            None
-        };
+        let value = self.eat(TokenKind::Eq).map(|_| self.parse_expr());
         let end = if let Some(semi) = self.eat(TokenKind::Semicolon) {
             semi.range.end
         } else {
@@ -149,6 +148,35 @@ impl Parser {
         };
 
         self.finish_node(m);
+        TextRange::new(start, end)
+    }
+
+    fn parse_param_declaration(&mut self) -> TextRange {
+        let start = self.expect_keyword("param").range.start;
+
+        if self.at(TokenKind::Param) {
+            self.bump();
+        } else {
+            self.error_here("expected parameter name");
+        }
+
+        if self.eat(TokenKind::Colon).is_none() {
+            self.error_here("expected `:` in parameter declaration");
+        }
+
+        while !self.at(TokenKind::Semicolon) && !self.at(TokenKind::Eof) {
+            if self.at(TokenKind::Pipe) {
+                self.error_here("expected `;` after parameter declaration");
+                break;
+            }
+            self.bump();
+        }
+
+        let end = self
+            .eat(TokenKind::Semicolon)
+            .map(|it| it.range.end)
+            .unwrap_or_else(|| self.current().range.start);
+
         TextRange::new(start, end)
     }
 
@@ -374,6 +402,17 @@ impl Parser {
             } else {
                 None
             };
+            let over = if self.at_keyword("over") {
+                self.bump();
+                if self.can_start_literal_or_param() {
+                    Some(self.parse_expr())
+                } else {
+                    self.error_here("expected align window after `over`");
+                    None
+                }
+            } else {
+                None
+            };
             let function = self.parse_optional_using_function();
             if window.is_none() && function.is_none() {
                 self.error_here("expected align window or `using` function");
@@ -381,6 +420,7 @@ impl Parser {
             let end = function
                 .as_ref()
                 .map(|it| it.end)
+                .or_else(|| over.as_ref().map(|it| it.end))
                 .or_else(|| window.as_ref().map(|it| it.end))
                 .unwrap_or(keyword.range.end);
             TextRange::new(pipe.range.start, end)
@@ -429,11 +469,22 @@ impl Parser {
                 .map(|it| it.range.end)
                 .unwrap_or(keyword.range.end);
             TextRange::new(pipe.range.start, end)
+        } else if self.at_keyword("ifdef") {
+            let end = self.parse_ifdef_pipe_tail();
+            TextRange::new(pipe.range.start, end)
+        } else if self.at_keyword("sample") {
+            let keyword = self.bump();
+            if !self.is_pipe_end() {
+                self.parse_expr();
+            }
+            TextRange::new(
+                pipe.range.start,
+                self.previous_end().unwrap_or(keyword.range.end),
+            )
         } else {
             if self.can_start_name() {
                 self.parse_name();
             }
-            self.error_here("unknown pipe operator");
             self.recover_until(&[
                 TokenKind::Pipe,
                 TokenKind::Semicolon,
@@ -473,6 +524,47 @@ impl Parser {
             }
         } else {
             None
+        }
+    }
+
+    fn parse_ifdef_pipe_tail(&mut self) -> usize {
+        let keyword = self.expect_keyword("ifdef");
+        if self.at(TokenKind::LParen) {
+            self.bump_balanced(TokenKind::LParen, TokenKind::RParen);
+        }
+
+        if self.at(TokenKind::LBrace) {
+            self.bump_balanced(TokenKind::LBrace, TokenKind::RBrace);
+        }
+
+        if self.at_keyword("else") {
+            self.bump();
+            if self.at(TokenKind::LBrace) {
+                self.bump_balanced(TokenKind::LBrace, TokenKind::RBrace);
+            }
+        }
+
+        self.previous_end().unwrap_or(keyword.range.end)
+    }
+
+    fn bump_balanced(&mut self, open: TokenKind, close: TokenKind) {
+        if !self.at(open) {
+            return;
+        }
+
+        let mut depth = 0usize;
+        while !self.at(TokenKind::Eof) {
+            if self.at(open) {
+                depth += 1;
+            } else if self.at(close) {
+                depth = depth.saturating_sub(1);
+                self.bump();
+                if depth == 0 {
+                    return;
+                }
+                continue;
+            }
+            self.bump();
         }
     }
 
@@ -778,6 +870,13 @@ impl Parser {
         )
     }
 
+    fn previous_end(&self) -> Option<usize> {
+        self.pos
+            .checked_sub(1)
+            .and_then(|idx| self.tokens.get(idx))
+            .map(|token| token.range.end)
+    }
+
     fn is_expr_end(&self) -> bool {
         matches!(
             self.current().kind,
@@ -810,14 +909,14 @@ impl Parser {
     fn can_start_name(&self) -> bool {
         matches!(
             self.current().kind,
-            TokenKind::Ident | TokenKind::EscapedIdent | TokenKind::Keyword
+            TokenKind::Ident | TokenKind::EscapedIdent | TokenKind::Keyword | TokenKind::Param
         )
     }
 
     fn nth_can_start_name(&self, n: usize) -> bool {
         matches!(
             self.nth(n).kind,
-            TokenKind::Ident | TokenKind::EscapedIdent | TokenKind::Keyword
+            TokenKind::Ident | TokenKind::EscapedIdent | TokenKind::Keyword | TokenKind::Param
         )
     }
 
@@ -856,6 +955,8 @@ impl Parser {
             SyntaxKind::ExtendPipe
         } else if self.nth_keyword(1, "as") {
             SyntaxKind::AsPipe
+        } else if self.nth_keyword(1, "ifdef") || self.nth_keyword(1, "sample") {
+            SyntaxKind::MapPipe
         } else {
             SyntaxKind::UnknownPipe
         }

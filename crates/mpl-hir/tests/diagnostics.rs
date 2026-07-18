@@ -167,6 +167,8 @@ fn known_functions_and_builtin_interval_are_accepted() {
         r#"set custom_unit = "ms";
 dataset:metric
   | map fill::const(0)
+  | map filter::gt(150)
+  | map is::ge(0.95)
   | align to $__interval using avg
   | bucket by host using histogram
 "#,
@@ -174,7 +176,25 @@ dataset:metric
 }
 
 #[test]
-fn real_indented_sample_only_reports_filter_hint() {
+fn public_example_constructs_are_accepted() {
+    insta::assert_snapshot!(snapshot(
+        r#"param $dataset: Dataset;
+param $duration: Duration;
+param $tag: Option<string>;
+set no_arg;
+set string_arg = "Hello, World!";
+
+$dataset:metric
+| ifdef($tag) { where __tag == $tag } else { where __tag == "default" }
+| sample
+| where i1 == inf and i2 == -inf and i3 == +inf
+| align to $duration over 7d using avg
+"#,
+    ));
+}
+
+#[test]
+fn real_indented_sample_is_clean() {
     insta::assert_snapshot!(snapshot(
         r#"test:http_requests_total
   | filter status == 500

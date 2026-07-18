@@ -1,5 +1,6 @@
 ---
 source: crates/mpl-hir/tests/diagnostics.rs
+assertion_line: 140
 expression: "snapshot(r#\"set timezone = \"UTC\";\n| filter status == 500\n| sample\n| map bogus\n| align to $__interval\n| extend step = $custom\n\"#,)"
 ---
 INPUT:
@@ -13,46 +14,14 @@ set timezone = "UTC";
 
 DIAGNOSTICS:
 
-1. Error: unknown pipe operator
-2. Error: unsupported set directive `timezone`; only `custom_unit` is supported
-3. Error: missing source
-4. Hint: `filter` is deprecated; use `where`
-5. Error: unknown pipe keyword `sample`
-6. Error: unknown map function `bogus`
-7. Error: missing `using` function for align
-8. Error: unknown parameter `$custom`
+1. Error: missing source
+2. Error: Unsupported map function: bogus
+3. Error: missing `using` function for align
+4. Error: unknown parameter `$custom`
 
 REPORTS:
 
 REPORT 1:
-
-  × unknown pipe operator
-   ╭─[4:1]
- 1 │ set timezone = "UTC";
- 2 │ | filter status == 500
- 3 │ | sample
- 4 │ | map bogus
-   · ┬
-   · ╰── unknown pipe operator
- 5 │ | align to $__interval
- 6 │ | extend step = $custom
-   ╰────
-
-REPORT 2:
-
-  × unsupported set directive `timezone`; only `custom_unit` is supported
-   ╭─[1:1]
- 1 │ set timezone = "UTC";
-   · ──────────┬──────────
-   ·           ╰── unsupported set directive `timezone`; only `custom_unit` is supported
- 2 │ | filter status == 500
- 3 │ | sample
- 4 │ | map bogus
- 5 │ | align to $__interval
- 6 │ | extend step = $custom
-   ╰────
-
-REPORT 3:
 
   × missing source
    ╭─[2:1]
@@ -65,49 +34,21 @@ REPORT 3:
    · ╰──── missing source
    ╰────
 
-REPORT 4:
+REPORT 2:
 
-  `filter` is deprecated; use `where`
-   ╭─[2:1]
- 1 │ set timezone = "UTC";
- 2 │ | filter status == 500
-   · ───────────┬──────────
-   ·            ╰── `filter` is deprecated; use `where`
- 3 │ | sample
- 4 │ | map bogus
- 5 │ | align to $__interval
- 6 │ | extend step = $custom
-   ╰────
-
-REPORT 5:
-
-  × unknown pipe keyword `sample`
-   ╭─[3:1]
- 1 │ set timezone = "UTC";
- 2 │ | filter status == 500
- 3 │ | sample
-   · ────┬───
-   ·     ╰── unknown pipe keyword `sample`
- 4 │ | map bogus
- 5 │ | align to $__interval
- 6 │ | extend step = $custom
-   ╰────
-
-REPORT 6:
-
-  × unknown map function `bogus`
+  × Unsupported map function: bogus
    ╭─[4:7]
  1 │ set timezone = "UTC";
  2 │ | filter status == 500
  3 │ | sample
  4 │ | map bogus
    ·       ──┬──
-   ·         ╰── unknown map function `bogus`
+   ·         ╰── Unsupported map function: bogus
  5 │ | align to $__interval
  6 │ | extend step = $custom
    ╰────
 
-REPORT 7:
+REPORT 3:
 
   × missing `using` function for align
    ╭─[5:1]
@@ -121,7 +62,7 @@ REPORT 7:
  6 │ | extend step = $custom
    ╰────
 
-REPORT 8:
+REPORT 4:
 
   × unknown parameter `$custom`
    ╭─[6:17]
