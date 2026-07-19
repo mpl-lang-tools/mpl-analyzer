@@ -1,74 +1,12 @@
 //! Snapshot coverage for IDE-facing analysis features.
 //!
 //! These tests exercise completions, hover, signature help, and formatting
-//! through the public `mpl-ide` API. Cursor snapshots include source, byte
-//! offset, and output so editor behavior can be accepted from the snapshot.
+//! through the public `mpl-ide` API. Cursor positions are specified as a
+//! zero-based line and Unicode-character offset.
 
-use mpl_ide::{CompletionItem, Hover, SignatureHelp, completions, format, hover, signature_help};
-use std::error::Error;
-use std::fmt;
+use mpl_code_render::{Annotation, Position, Source};
+use mpl_ide::{Hover, SignatureHelp, completions, format, hover, signature_help};
 use std::fmt::Write;
-
-const CURSOR_MARKER: &str = "$0";
-const CURSOR_DISPLAY: &str = "█";
-const MIETTE_ALL_CONTEXT_LINES: usize = 10_000;
-
-struct IdeReport {
-    source: String,
-    message: String,
-    label: String,
-    help: Option<String>,
-    offset: usize,
-    len: usize,
-}
-
-impl fmt::Debug for IdeReport {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("IdeReport")
-            .field("message", &self.message)
-            .field("label", &self.label)
-            .finish()
-    }
-}
-
-impl fmt::Display for IdeReport {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.message)
-    }
-}
-
-impl Error for IdeReport {}
-
-impl miette::Diagnostic for IdeReport {
-    fn severity(&self) -> Option<miette::Severity> {
-        Some(miette::Severity::Advice)
-    }
-
-    fn help<'a>(&'a self) -> Option<Box<dyn fmt::Display + 'a>> {
-        self.help
-            .as_ref()
-            .map(Box::new)
-            .map(|help| help as Box<dyn fmt::Display>)
-    }
-
-    fn source_code(&self) -> Option<&dyn miette::SourceCode> {
-        Some(&self.source)
-    }
-
-    fn labels(&self) -> Option<Box<dyn Iterator<Item = miette::LabeledSpan> + '_>> {
-        Some(Box::new(std::iter::once(miette::LabeledSpan::at(
-            (self.offset, self.len),
-            self.label.clone(),
-        ))))
-    }
-}
-
-fn cursor(input: &str) -> (String, usize) {
-    let offset = input.find(CURSOR_MARKER).expect("missing $0 cursor marker");
-    let mut text = input.to_string();
-    text.replace_range(offset..offset + CURSOR_MARKER.len(), "");
-    (text, offset)
-}
 
 fn write_block(snapshot: &mut String, content: &str) {
     write!(snapshot, "{content}").unwrap();
@@ -82,225 +20,613 @@ fn write_section(snapshot: &mut String, title: &str) {
     writeln!(snapshot).unwrap();
 }
 
-fn write_subsection(snapshot: &mut String, title: &str) {
-    writeln!(snapshot, "{}:", title.to_uppercase()).unwrap();
-    writeln!(snapshot).unwrap();
-}
-
-fn write_case_section(snapshot: &mut String, title: &str) {
-    writeln!(snapshot, "{}", title.to_uppercase()).unwrap();
-    writeln!(snapshot).unwrap();
-}
-
-fn write_cursor_case_header(
-    snapshot: &mut String,
-    case_index: usize,
-    name: &str,
-    source_with_cursor: &str,
-) {
-    let display_source = source_with_cursor.replace(CURSOR_MARKER, CURSOR_DISPLAY);
-    write_case_section(snapshot, &format!("CASE {case_index}: {name}"));
-    write_subsection(snapshot, "SOURCE");
-    write_block(snapshot, &display_source);
-    writeln!(snapshot).unwrap();
-}
-
-fn render_report(report: IdeReport) -> String {
-    let handler =
-        miette::GraphicalReportHandler::new_themed(miette::GraphicalTheme::unicode_nocolor())
-            .with_context_lines(MIETTE_ALL_CONTEXT_LINES)
-            .with_width(100)
-            .with_links(false);
-    let mut rendered = String::new();
-    handler
-        .render_report(&mut rendered, &report)
-        .expect("miette report should render");
-    rendered.replace("\u{261e} ", "").replace('\u{261e}', "")
-}
-
-fn cursor_span(source: &str, offset: usize) -> (usize, usize) {
-    if source.is_empty() {
-        return (0, 0);
-    }
-
-    (offset.min(source.len().saturating_sub(1)), 1)
-}
-
-fn split_title_body(contents: &str) -> (String, Option<String>) {
-    let trimmed = contents.trim();
-    let Some((title, body)) = trimmed.split_once("\n\n") else {
-        return (trimmed.to_string(), None);
-    };
-
-    let body = body.trim();
-    (
-        title.trim().to_string(),
-        (!body.is_empty()).then(|| body.to_string()),
-    )
+fn render_cursor_source(source: &str, cursor: Position, label: &str) -> String {
+    Source::new(source)
+        .annotation(Annotation::point(cursor, label))
+        .render()
+        .expect("cursor should be a valid source position")
 }
 
 fn format_snapshot(input: &str, output: &str) -> String {
     let mut snapshot = String::new();
-    write_section(&mut snapshot, "INPUT");
+    write_section(&mut snapshot, "SOURCE");
     write_block(&mut snapshot, input);
     writeln!(snapshot).unwrap();
-    write_section(&mut snapshot, "OUTPUT");
+    write_section(&mut snapshot, "FORMATTED");
     write_block(&mut snapshot, output);
     snapshot
 }
 
-fn completions_snapshot(cases: &[(&str, &str)]) -> String {
+fn completions_snapshot(source: &str, cursor: Position, selected: &str) -> String {
     let mut snapshot = String::new();
-    for (index, (name, source_with_cursor)) in cases.iter().enumerate() {
-        if index > 0 {
-            writeln!(snapshot).unwrap();
-        }
+    let offset = cursor
+        .to_byte_offset(source)
+        .expect("cursor should be a valid source position");
+    let items = completions(source, offset);
+    let selected_item = items
+        .iter()
+        .find(|item| item.label == selected)
+        .unwrap_or_else(|| panic!("selected completion {selected:?} should be available"));
+    let longest_label = items
+        .iter()
+        .map(|item| item.label.chars().count())
+        .max()
+        .unwrap_or(0);
+    let labels = items
+        .iter()
+        .map(|item| {
+            if item.label == selected {
+                format!("{:<longest_label$} ←", item.label)
+            } else {
+                item.label.clone()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
 
-        let (source, offset) = cursor(source_with_cursor);
-        let output = completions(&source, offset);
-        write_cursor_case_header(&mut snapshot, index + 1, name, source_with_cursor);
-        write_subsection(&mut snapshot, "COMPLETIONS");
-        write_completion_report(&mut snapshot, &source, offset, &output);
-    }
+    write_section(&mut snapshot, "SOURCE");
+    let rendered_source = render_cursor_source(source, cursor, &labels);
+    write_block(
+        &mut snapshot,
+        rendered_source
+            .strip_prefix('\n')
+            .unwrap_or(&rendered_source),
+    );
+
+    let mut edited = source.to_string();
+    edited.replace_range(
+        selected_item.replacement_range.start..selected_item.replacement_range.end,
+        &selected_item.label,
+    );
+    writeln!(snapshot).unwrap();
+    write_section(&mut snapshot, "EDITED");
+    let rendered_edited = Source::new(&edited)
+        .render()
+        .expect("edited source should render");
+    write_block(
+        &mut snapshot,
+        rendered_edited
+            .strip_prefix('\n')
+            .unwrap_or(&rendered_edited),
+    );
     snapshot
 }
 
-fn write_completion_report(
+fn hover_snapshot(source: &str, cursor: Position) -> String {
+    let mut snapshot = String::new();
+    let offset = cursor
+        .to_byte_offset(source)
+        .expect("cursor should be a valid source position");
+    let output = hover(source, offset);
+    write_section(&mut snapshot, "SOURCE");
+    write_hover(&mut snapshot, source, cursor, output.as_ref());
+    snapshot
+}
+
+fn write_hover(snapshot: &mut String, source: &str, cursor: Position, hover: Option<&Hover>) {
+    let annotation = if let Some(hover) = hover {
+        let range = Position::from_byte_offset(source, hover.range.start)
+            .expect("hover start should be a valid source position")
+            ..Position::from_byte_offset(source, hover.range.end)
+                .expect("hover end should be a valid source position");
+        Annotation::anchored_span(range, cursor, &hover.contents).boxed()
+    } else {
+        Annotation::point(cursor, "None")
+    };
+    let rendered = Source::new(source)
+        .annotation(annotation)
+        .render()
+        .expect("hover should be a valid source annotation");
+    write_block(snapshot, rendered.strip_prefix('\n').unwrap_or(&rendered));
+}
+
+fn signature_snapshot(source: &str, cursor: Position) -> String {
+    let mut snapshot = String::new();
+    let offset = cursor
+        .to_byte_offset(source)
+        .expect("cursor should be a valid source position");
+    let output = signature_help(source, offset);
+    write_section(&mut snapshot, "SOURCE");
+    write_signature_help(&mut snapshot, source, cursor, output.as_ref());
+    snapshot
+}
+
+fn write_signature_help(
     snapshot: &mut String,
     source: &str,
-    offset: usize,
-    items: &[CompletionItem],
+    cursor: Position,
+    signature: Option<&SignatureHelp>,
 ) {
-    let labels: Vec<_> = items.iter().map(|item| item.label.clone()).collect();
-    let (offset, len) = cursor_span(source, offset);
-    let rendered = render_report(IdeReport {
-        source: source.to_string(),
-        message: "completions".into(),
-        label: format!("{} completion item(s)", labels.len()),
-        help: (!labels.is_empty()).then(|| labels.join("\n")),
-        offset,
-        len,
-    });
-    write_block(snapshot, &rendered);
-}
-
-fn hovers_snapshot(cases: &[(&str, &str)]) -> String {
-    let mut snapshot = String::new();
-    for (index, (name, source_with_cursor)) in cases.iter().enumerate() {
-        if index > 0 {
-            writeln!(snapshot).unwrap();
-        }
-
-        let (source, offset) = cursor(source_with_cursor);
-        let output = hover(&source, offset);
-        write_cursor_case_header(&mut snapshot, index + 1, name, source_with_cursor);
-        write_subsection(&mut snapshot, "HOVER");
-        write_hover(&mut snapshot, &source, output.as_ref());
-    }
-    snapshot
-}
-
-fn write_hover(snapshot: &mut String, source: &str, hover: Option<&Hover>) {
-    let Some(hover) = hover else {
-        writeln!(snapshot, "None").unwrap();
-        return;
+    let contents = signature.map(signature_help_contents);
+    let annotation = if let Some(contents) = contents.as_deref() {
+        Annotation::point(cursor, contents).boxed()
+    } else {
+        Annotation::point(cursor, "None")
     };
-
-    let (label, help) = split_title_body(&hover.contents);
-    let rendered = render_report(IdeReport {
-        source: source.to_string(),
-        message: "hover".into(),
-        label,
-        help,
-        offset: hover.range.start,
-        len: hover.range.end.saturating_sub(hover.range.start),
-    });
-    write_block(snapshot, &rendered);
+    let rendered = Source::new(source)
+        .annotation(annotation)
+        .render()
+        .expect("signature help should be a valid source annotation");
+    write_block(snapshot, rendered.strip_prefix('\n').unwrap_or(&rendered));
 }
 
-fn signature_snapshot(cases: &[(&str, &str)]) -> String {
-    let mut snapshot = String::new();
-    for (index, (name, source_with_cursor)) in cases.iter().enumerate() {
-        if index > 0 {
-            writeln!(snapshot).unwrap();
-        }
-
-        let (source, offset) = cursor(source_with_cursor);
-        let output = signature_help(&source, offset);
-        write_cursor_case_header(&mut snapshot, index + 1, name, source_with_cursor);
-        write_subsection(&mut snapshot, "SIGNATURE HELP");
-        write_signature_help(&mut snapshot, &source, output.as_ref());
+fn signature_help_contents(signature: &SignatureHelp) -> String {
+    let mut contents = signature.signature.clone();
+    if let Some(documentation) = &signature.documentation {
+        write!(contents, "\n\n{documentation}").unwrap();
     }
-    snapshot
-}
+    contents.push_str("\n\nparameters:\n\n");
+    if signature.parameters.is_empty() {
+        contents.push_str("None");
+        return contents;
+    }
 
-fn write_signature_help(snapshot: &mut String, source: &str, signature: Option<&SignatureHelp>) {
-    let Some(signature) = signature else {
-        writeln!(snapshot, "None").unwrap();
-        return;
-    };
-
-    let rendered = render_report(IdeReport {
-        source: source.to_string(),
-        message: "signature help".into(),
-        label: signature.signature.clone(),
-        help: None,
-        offset: signature.range.start,
-        len: signature.range.end.saturating_sub(signature.range.start),
-    });
-    write_block(snapshot, &rendered);
+    for (index, parameter) in signature.parameters.iter().enumerate() {
+        if index > 0 {
+            contents.push('\n');
+        }
+        let label = &signature.signature[parameter.label.start..parameter.label.end];
+        write!(contents, "{}. ({label})", index + 1).unwrap();
+        if let Some(documentation) = &parameter.documentation {
+            write!(contents, " {documentation}").unwrap();
+        }
+        if signature.active_parameter == Some(index) {
+            contents.push_str(" ←");
+        }
+    }
+    contents
 }
 
 #[test]
 fn completes_pipe_keywords() {
-    insta::assert_snapshot!(completions_snapshot(&[(
-        "pipe_keywords",
-        "from prod:requests | $0",
-    )]));
+    insta::assert_snapshot!(completions_snapshot(
+        "from prod:requests | ",
+        Position::new(0, 21),
+        "map",
+    ));
 }
 
 #[test]
-fn completes_functions_by_using_context() {
-    insta::assert_snapshot!(completions_snapshot(&[
-        ("align", "from prod:requests | align $__interval using $0"),
-        ("group", "from prod:requests | group by host using $0"),
-        ("bucket", "from prod:requests | bucket by le using $0"),
-        ("compute", "compute total using $0"),
-        ("map_using", "from prod:requests | map using $0"),
-        ("map_direct", "from prod:requests | map $0"),
-    ]));
+fn completes_pipe_keywords_before_existing_code() {
+    insta::assert_snapshot!(completions_snapshot(
+        "from prod:requests |     rate",
+        Position::new(0, 21),
+        "map",
+    ));
 }
 
 #[test]
-fn completes_source_params_and_comparison_literals() {
-    insta::assert_snapshot!(completions_snapshot(&[
-        ("source_start", "$0"),
-        ("param", "from prod:requests | align $0"),
-        ("comparison", "from prod:requests | where status == $0"),
-    ]));
+fn completes_partial_pipe_keywords_before_existing_code() {
+    insta::assert_snapshot!(completions_snapshot(
+        "from prod:requests | m    rate",
+        Position::new(0, 22),
+        "map",
+    ));
 }
 
 #[test]
-fn hovers_functions_and_keywords() {
-    insta::assert_snapshot!(hovers_snapshot(&[
-        ("function", "from prod:requests | map fill::$0const(0)"),
-        (
-            "keyword",
-            "from prod:requests | $0align $__interval using avg",
-        ),
-    ]));
+fn completes_align_functions() {
+    insta::assert_snapshot!(completions_snapshot(
+        "from prod:requests | align $__interval using ",
+        Position::new(0, 45),
+        "prom::rate",
+    ));
 }
 
 #[test]
-fn signature_help_for_functions_and_keywords() {
-    insta::assert_snapshot!(signature_snapshot(&[
-        ("function", "from prod:requests | map fill::const($0)"),
-        ("keyword", "from prod:requests | $0group by host using sum"),
-    ]));
+fn completes_group_functions() {
+    insta::assert_snapshot!(completions_snapshot(
+        "from prod:requests | group by host using ",
+        Position::new(0, 41),
+        "sum",
+    ));
+}
+
+#[test]
+fn completes_bucket_functions() {
+    insta::assert_snapshot!(completions_snapshot(
+        "from prod:requests | bucket by le using ",
+        Position::new(0, 40),
+        "histogram",
+    ));
+}
+
+#[test]
+fn completes_compute_functions() {
+    insta::assert_snapshot!(completions_snapshot(
+        "compute total using ",
+        Position::new(0, 20),
+        "+",
+    ));
+}
+
+#[test]
+fn completes_map_functions_after_using() {
+    insta::assert_snapshot!(completions_snapshot(
+        "from prod:requests | map using ",
+        Position::new(0, 31),
+        "fill::const",
+    ));
+}
+
+#[test]
+fn completes_map_functions_directly() {
+    insta::assert_snapshot!(completions_snapshot(
+        "from prod:requests | map ",
+        Position::new(0, 25),
+        "rate",
+    ));
+}
+
+#[test]
+fn completes_source_start() {
+    insta::assert_snapshot!(completions_snapshot("", Position::new(0, 0), "from"));
+}
+
+#[test]
+fn completes_align_params() {
+    insta::assert_snapshot!(completions_snapshot(
+        "from prod:requests | align ",
+        Position::new(0, 27),
+        "$__interval",
+    ));
+}
+
+#[test]
+fn completes_comparison_literals() {
+    insta::assert_snapshot!(completions_snapshot(
+        "from prod:requests | where status == ",
+        Position::new(0, 37),
+        "true",
+    ));
+}
+
+#[test]
+fn completes_comparison_literals_with_following_lines() {
+    insta::assert_snapshot!(completions_snapshot(
+        "from prod:requests | where status == \n| map rate\n| as filtered_requests",
+        Position::new(0, 37),
+        "false",
+    ));
+}
+
+#[test]
+fn hovers_function() {
+    insta::assert_snapshot!(hover_snapshot(
+        "from prod:requests | map fill::const(0)",
+        Position::new(0, 31),
+    ));
+}
+
+#[test]
+fn hovers_keyword() {
+    insta::assert_snapshot!(hover_snapshot(
+        "from prod:requests | align $__interval using avg",
+        Position::new(0, 21),
+    ));
+}
+
+#[test]
+fn hovers_bare_map_function() {
+    insta::assert_snapshot!(hover_snapshot(
+        "from prod:requests | map rate",
+        Position::new(0, 27),
+    ));
+}
+
+#[test]
+fn hovers_namespaced_align_function() {
+    insta::assert_snapshot!(hover_snapshot(
+        "from prod:requests | align $__interval using prom::rate",
+        Position::new(0, 50),
+    ));
+}
+
+#[test]
+fn hovers_group_function_with_context_specific_docs() {
+    insta::assert_snapshot!(hover_snapshot(
+        "from prod:requests | group by host using avg",
+        Position::new(0, 42),
+    ));
+}
+
+#[test]
+fn hovers_bucket_function_with_arguments() {
+    insta::assert_snapshot!(hover_snapshot(
+        "from prod:requests | bucket by le using histogram(\"le\")",
+        Position::new(0, 44),
+    ));
+}
+
+#[test]
+fn hovers_compute_operator() {
+    insta::assert_snapshot!(hover_snapshot(
+        "compute total using +",
+        Position::new(0, 20),
+    ));
+}
+
+#[test]
+fn hovers_pipe_token() {
+    insta::assert_snapshot!(hover_snapshot(
+        "from prod:requests | map rate",
+        Position::new(0, 19),
+    ));
+}
+
+#[test]
+fn hovers_source_keyword() {
+    insta::assert_snapshot!(hover_snapshot(
+        "from prod:requests\n| map rate",
+        Position::new(0, 1),
+    ));
+}
+
+#[test]
+fn hovers_directive_keyword() {
+    insta::assert_snapshot!(hover_snapshot(
+        "set timezone = \"UTC\";\nfrom prod:requests",
+        Position::new(0, 1),
+    ));
+}
+
+#[test]
+fn hovers_deprecated_filter_keyword() {
+    insta::assert_snapshot!(hover_snapshot(
+        "from prod:requests | filter status == 500",
+        Position::new(0, 23),
+    ));
+}
+
+#[test]
+fn hovers_alias_keyword() {
+    insta::assert_snapshot!(hover_snapshot(
+        "from prod:requests | as requests",
+        Position::new(0, 22),
+    ));
+}
+
+#[test]
+fn hovers_boolean_operator() {
+    insta::assert_snapshot!(hover_snapshot(
+        "from prod:requests | where ok == true and ready == true",
+        Position::new(0, 39),
+    ));
+}
+
+#[test]
+fn hovers_boolean_literal() {
+    insta::assert_snapshot!(hover_snapshot(
+        "from prod:requests | where ok == true",
+        Position::new(0, 34),
+    ));
+}
+
+#[test]
+fn does_not_hover_unknown_identifier() {
+    insta::assert_snapshot!(hover_snapshot(
+        "from prod:requests | map mystery",
+        Position::new(0, 28),
+    ));
+}
+
+#[test]
+fn hovers_function_in_incomplete_multiline_pipeline() {
+    insta::assert_snapshot!(hover_snapshot(
+        "set timezone = \"UTC\";\nfrom prod:requests\n| where status ==\n| map fill::const(\n| align $__interval using",
+        Position::new(3, 14),
+    ));
+}
+
+#[test]
+fn hovers_keyword_with_multiline_context_before_and_after() {
+    insta::assert_snapshot!(hover_snapshot(
+        "from prod:requests\n| where status ==\n| map rate\n| as requests",
+        Position::new(1, 3),
+    ));
+}
+
+#[test]
+fn does_not_hover_partially_typed_function() {
+    insta::assert_snapshot!(hover_snapshot(
+        "from prod:requests\n| where status == true\n| map fill::con\n| as requests",
+        Position::new(2, 13),
+    ));
+}
+
+#[test]
+fn does_not_hover_partially_typed_keyword() {
+    insta::assert_snapshot!(hover_snapshot(
+        "from prod:requests\n| whe\n| map rate",
+        Position::new(1, 4),
+    ));
+}
+
+#[test]
+fn signature_help_for_function() {
+    insta::assert_snapshot!(signature_snapshot(
+        "from prod:requests | map fill::const()",
+        Position::new(0, 37),
+    ));
+}
+
+#[test]
+fn signature_help_for_keyword() {
+    insta::assert_snapshot!(signature_snapshot(
+        "from prod:requests | group by host using sum",
+        Position::new(0, 21),
+    ));
+}
+
+#[test]
+fn signature_help_for_function_without_parameters() {
+    insta::assert_snapshot!(signature_snapshot(
+        "from prod:requests | map rate",
+        Position::new(0, 27),
+    ));
+}
+
+#[test]
+fn signature_help_inside_single_parameter() {
+    insta::assert_snapshot!(signature_snapshot(
+        "from prod:requests | map fill::const(100)",
+        Position::new(0, 38),
+    ));
+}
+
+#[test]
+fn signature_help_for_excess_non_variadic_argument() {
+    insta::assert_snapshot!(signature_snapshot(
+        "from prod:requests | map fill::const(1, 2)",
+        Position::new(0, 41),
+    ));
+}
+
+#[test]
+fn signature_help_for_first_variadic_argument() {
+    insta::assert_snapshot!(signature_snapshot(
+        "from prod:requests | bucket by le using histogram(0.5, 0.9, 0.99)",
+        Position::new(0, 51),
+    ));
+}
+
+#[test]
+fn signature_help_for_later_variadic_argument() {
+    insta::assert_snapshot!(signature_snapshot(
+        "from prod:requests | bucket by le using histogram(0.5, 0.9, 0.99)",
+        Position::new(0, 62),
+    ));
+}
+
+#[test]
+fn signature_help_for_first_multi_parameter_argument() {
+    insta::assert_snapshot!(signature_snapshot(
+        "from prod:requests | bucket by le using interpolate_cumulative_histogram(linear, 0.5, 0.9)",
+        Position::new(0, 75),
+    ));
+}
+
+#[test]
+fn signature_help_for_variadic_multi_parameter_argument() {
+    insta::assert_snapshot!(signature_snapshot(
+        "from prod:requests | bucket by le using interpolate_cumulative_histogram(linear, 0.5, 0.9)",
+        Position::new(0, 87),
+    ));
+}
+
+#[test]
+fn signature_help_after_comma_in_incomplete_variadic_call() {
+    insta::assert_snapshot!(signature_snapshot(
+        "from prod:requests | bucket by le using interpolate_cumulative_histogram(linear,",
+        Position::new(0, 80),
+    ));
+}
+
+#[test]
+fn signature_help_in_multiline_variadic_call() {
+    insta::assert_snapshot!(signature_snapshot(
+        "from prod:requests\n| bucket by le using interpolate_cumulative_histogram(\n    linear,\n    0.5,\n    0.9\n)\n| as latency",
+        Position::new(4, 5),
+    ));
+}
+
+#[test]
+fn no_signature_help_for_partially_typed_function() {
+    insta::assert_snapshot!(signature_snapshot(
+        "from prod:requests | map fill::con(",
+        Position::new(0, 35),
+    ));
 }
 
 #[test]
 fn formats_from_syntax_tokens() {
     let input = "from prod:requests|align $__interval using avg;";
+    insta::assert_snapshot!(format_snapshot(input, &format(input)));
+}
+
+#[test]
+fn formats_parameters_and_set_directives() {
+    let input = r#"// configuration
+
+
+param   $duration
+    :    Duration   ;
+
+set     timezone    =    "UTC"    ;
+"#;
+    insta::assert_snapshot!(format_snapshot(input, &format(input)));
+}
+
+#[test]
+fn formats_source_ranges_and_aliases() {
+    let input = r#"
+
+http  :   request_duration
+       [   5m   ]
+
+  as       latency
+
+"#;
+    insta::assert_snapshot!(format_snapshot(input, &format(input)));
+}
+
+#[test]
+fn formats_predicates_and_type_checks() {
+    let input = r#"from    prod : requests
+             |    where     service
+       ==       "api"
+
+ and       not
+          status    is       string
+"#;
+    insta::assert_snapshot!(format_snapshot(input, &format(input)));
+}
+
+#[test]
+fn formats_function_calls_and_map_pipelines() {
+    let input = r#"from prod:requests
+  |       map
+              fill  ::  const (
+       0
+                            )
+
+
+
+         |map       rate
+"#;
+    insta::assert_snapshot!(format_snapshot(input, &format(input)));
+}
+
+#[test]
+fn formats_group_bucket_and_extend_pipeline() {
+    let input = r#"from prod:requests
+       |group    by service,
+ region     using       sum
+
+ |       bucket by le
+       to       1m using
+ histogram ( "le" )
+
+
+            |extend    slo =99.9,
+matcher=   #/api/
+"#;
+    insta::assert_snapshot!(format_snapshot(input, &format(input)));
+}
+
+#[test]
+fn formats_parenthesized_compute_queries() {
+    let input = r#"(
+       cpu : usage [ 1h ]
+ |map       rate,
+
+mem : rss [1h]
+                )
+        | compute
+ total       using avg
+
+
+ |as        total_usage
+"#;
     insta::assert_snapshot!(format_snapshot(input, &format(input)));
 }

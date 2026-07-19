@@ -1,0 +1,22 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "completions_snapshot(\"from prod:requests | where status == \\n| map rate\\n| as filtered_requests\",\nPosition::new(0, 37), \"false\",)"
+---
+SOURCE:
+
+1 │ from prod:requests | where status ==
+  ·                                      ┬
+  ·                                      ╰ true
+  ·                                        false       ←
+  ·                                        ""
+  ·                                        #//
+  ·                                        0
+  ·                                        $__interval
+2 │ | map rate
+3 │ | as filtered_requests
+
+EDITED:
+
+1 │ from prod:requests | where status == false
+2 │ | map rate
+3 │ | as filtered_requests

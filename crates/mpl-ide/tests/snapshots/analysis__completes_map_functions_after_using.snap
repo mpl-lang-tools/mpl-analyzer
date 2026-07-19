@@ -1,0 +1,29 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "completions_snapshot(\"from prod:requests | map using \", Position::new(0, 31),\n\"fill::const\",)"
+---
+SOURCE:
+
+1 │ from prod:requests | map using
+  ·                                ┬
+  ·                                ╰ rate
+  ·                                  increase
+  ·                                  abs
+  ·                                  fill::prev
+  ·                                  fill::const ←
+  ·                                  filter::lt
+  ·                                  filter::gt
+  ·                                  filter::eq
+  ·                                  filter::ne
+  ·                                  filter::ge
+  ·                                  filter::le
+  ·                                  is::lt
+  ·                                  is::gt
+  ·                                  is::eq
+  ·                                  is::ne
+  ·                                  is::ge
+  ·                                  is::le
+
+EDITED:
+
+1 │ from prod:requests | map using fill::const

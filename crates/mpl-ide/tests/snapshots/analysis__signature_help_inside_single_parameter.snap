@@ -1,0 +1,17 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "signature_snapshot(\"from prod:requests | map fill::const(100)\",\nPosition::new(0, 38),)"
+---
+SOURCE:
+
+1 │ from prod:requests | map fill::const(100)
+  ·                                       ┬
+  ·                                       │ ╭───────────────────────────────────────────────────────────╮
+  ·                                       ╰─┤ fill::const(value)                                        │
+  ·                                         │                                                           │
+  ·                                         │ Fill missing values with a constant.                      │
+  ·                                         │                                                           │
+  ·                                         │ parameters:                                               │
+  ·                                         │                                                           │
+  ·                                         │ 1. (value) The constant used to replace missing values. ← │
+  ·                                         ╰───────────────────────────────────────────────────────────╯

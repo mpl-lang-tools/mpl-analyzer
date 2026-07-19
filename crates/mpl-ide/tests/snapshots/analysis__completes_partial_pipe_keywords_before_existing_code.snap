@@ -1,0 +1,13 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "completions_snapshot(\"from prod:requests | m    rate\", Position::new(0, 22),\n\"map\",)"
+---
+SOURCE:
+
+1 │ from prod:requests | m    rate
+  ·                       ┬
+  ·                       ╰ map ←
+
+EDITED:
+
+1 │ from prod:requests | map    rate

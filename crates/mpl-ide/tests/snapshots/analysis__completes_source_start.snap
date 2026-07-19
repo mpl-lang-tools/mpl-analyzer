@@ -1,0 +1,15 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "completions_snapshot(\"\", Position::new(0, 0), \"from\")"
+---
+SOURCE:
+
+1 │ 
+  · ┬
+  · ╰ from    ←
+  ·   compute
+  ·   set
+
+EDITED:
+
+1 │ from

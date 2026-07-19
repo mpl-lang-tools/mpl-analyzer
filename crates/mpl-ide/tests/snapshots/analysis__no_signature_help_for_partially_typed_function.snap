@@ -1,0 +1,9 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "signature_snapshot(\"from prod:requests | map fill::con(\",\nPosition::new(0, 35),)"
+---
+SOURCE:
+
+1 │ from prod:requests | map fill::con(
+  ·                                    ┬
+  ·                                    ╰ None

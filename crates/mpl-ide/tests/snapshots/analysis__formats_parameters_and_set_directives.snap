@@ -1,0 +1,19 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "format_snapshot(input, &format(input))"
+---
+SOURCE:
+
+// configuration
+
+
+param   $duration
+    :    Duration   ;
+
+set     timezone    =    "UTC"    ;
+
+FORMATTED:
+
+// configuration
+param $duration:Duration;
+set timezone = "UTC";

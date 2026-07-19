@@ -1,0 +1,19 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "completions_snapshot(\"compute total using \", Position::new(0, 20), \"+\",)"
+---
+SOURCE:
+
+1 │ compute total using
+  ·                     ┬
+  ·                     ╰ +   ←
+  ·                       -
+  ·                       *
+  ·                       /
+  ·                       avg
+  ·                       max
+  ·                       min
+
+EDITED:
+
+1 │ compute total using +

@@ -1,0 +1,24 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "format_snapshot(input, &format(input))"
+---
+SOURCE:
+
+from prod:requests
+       |group    by service,
+ region     using       sum
+
+ |       bucket by le
+       to       1m using
+ histogram ( "le" )
+
+
+            |extend    slo =99.9,
+matcher=   #/api/
+
+FORMATTED:
+
+from prod:requests
+| group by service, region using sum
+| bucket by le to 1m using histogram("le")
+| extend slo = 99.9, matcher = #/api/

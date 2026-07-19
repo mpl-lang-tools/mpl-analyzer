@@ -298,6 +298,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "mpl-code-render"
+version = "0.1.0"
+dependencies = [
+ "unicode-width 0.2.2",
+]
+
+[[package]]
 name = "mpl-hir"
 version = "0.1.0"
 dependencies = [
@@ -314,7 +321,7 @@ name = "mpl-ide"
 version = "0.1.0"
 dependencies = [
  "insta",
- "miette",
+ "mpl-code-render",
  "mpl-hir",
  "mpl-syntax",
  "serde",

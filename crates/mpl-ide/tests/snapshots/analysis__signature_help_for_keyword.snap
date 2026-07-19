@@ -1,0 +1,18 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "signature_snapshot(\"from prod:requests | group by host using sum\",\nPosition::new(0, 21),)"
+---
+SOURCE:
+
+1 │ from prod:requests | group by host using sum
+  ·                      ┬
+  ·                      │ ╭────────────────────────────────────────────────────╮
+  ·                      ╰─┤ group by <tag...> using <function>                 │
+  ·                        │                                                    │
+  ·                        │ Groups series by tags using an aggregate function. │
+  ·                        │                                                    │
+  ·                        │ parameters:                                        │
+  ·                        │                                                    │
+  ·                        │ 1. (<tag...>) The tags used to group series.       │
+  ·                        │ 2. (<function>) The aggregate function.            │
+  ·                        ╰────────────────────────────────────────────────────╯

@@ -1,0 +1,11 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "hover_snapshot(\"from prod:requests | as requests\", Position::new(0, 22),)"
+---
+SOURCE:
+
+1 │ from prod:requests | as requests
+  ·                      ─┬
+  ·                       │ ╭───────────────────╮
+  ·                       ╰─┤ Assigns an alias. │
+  ·                         ╰───────────────────╯

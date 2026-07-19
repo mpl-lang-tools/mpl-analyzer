@@ -1,0 +1,11 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "hover_snapshot(\"from prod:requests | map rate\", Position::new(0, 19),)"
+---
+SOURCE:
+
+1 │ from prod:requests | map rate
+  ·                    ┬
+  ·                    │ ╭───────────────────────────────────╮
+  ·                    ╰─┤ Starts a pipeline transformation. │
+  ·                      ╰───────────────────────────────────╯

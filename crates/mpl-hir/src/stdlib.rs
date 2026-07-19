@@ -34,6 +34,57 @@ pub struct Function {
     pub docs: &'static str,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FunctionParameter {
+    pub label: &'static str,
+    pub docs: &'static str,
+    pub variadic: bool,
+}
+
+const NO_PARAMETERS: &[FunctionParameter] = &[];
+const FILL_VALUE_PARAMETER: &[FunctionParameter] = &[FunctionParameter {
+    label: "value",
+    docs: "The constant used to replace missing values.",
+    variadic: false,
+}];
+const COMPARISON_VALUE_PARAMETER: &[FunctionParameter] = &[FunctionParameter {
+    label: "value",
+    docs: "The value to compare each datapoint against.",
+    variadic: false,
+}];
+const HISTOGRAM_SPECS_PARAMETER: &[FunctionParameter] = &[FunctionParameter {
+    label: "specs...",
+    docs: "The bucket specifications.",
+    variadic: true,
+}];
+const CUMULATIVE_HISTOGRAM_PARAMETERS: &[FunctionParameter] = &[
+    FunctionParameter {
+        label: "mode",
+        docs: "The histogram interpolation mode.",
+        variadic: false,
+    },
+    FunctionParameter {
+        label: "specs...",
+        docs: "The bucket specifications.",
+        variadic: true,
+    },
+];
+
+impl Function {
+    pub fn parameters(&self) -> &'static [FunctionParameter] {
+        match self.name {
+            "fill::const" => FILL_VALUE_PARAMETER,
+            "filter::lt" | "filter::gt" | "filter::eq" | "filter::ne" | "filter::ge"
+            | "filter::le" | "is::lt" | "is::gt" | "is::eq" | "is::ne" | "is::ge" | "is::le" => {
+                COMPARISON_VALUE_PARAMETER
+            }
+            "histogram" | "interpolate_delta_histogram" => HISTOGRAM_SPECS_PARAMETER,
+            "interpolate_cumulative_histogram" => CUMULATIVE_HISTOGRAM_PARAMETERS,
+            _ => NO_PARAMETERS,
+        }
+    }
+}
+
 pub const FUNCTIONS: &[Function] = &[
     Function {
         name: "rate",

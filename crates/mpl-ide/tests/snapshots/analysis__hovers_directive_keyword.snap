@@ -1,0 +1,12 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "hover_snapshot(\"set timezone = \\\"UTC\\\";\\nfrom prod:requests\",\nPosition::new(0, 1),)"
+---
+SOURCE:
+
+1 │ set timezone = "UTC";
+  · ─┬─
+  ·  │ ╭─────────────────────────────╮
+  ·  ╰─┤ Declares a query directive. │
+  ·    ╰─────────────────────────────╯
+2 │ from prod:requests

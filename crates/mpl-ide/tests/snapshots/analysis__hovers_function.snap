@@ -1,0 +1,13 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "hover_snapshot(\"from prod:requests | map fill::const(0)\",\nPosition::new(0, 31),)"
+---
+SOURCE:
+
+1 │ from prod:requests | map fill::const(0)
+  ·                          ──────┬────
+  ·                                │ ╭──────────────────────────────────────╮
+  ·                                ╰─┤ `fill::const(value)`                 │
+  ·                                  │                                      │
+  ·                                  │ Fill missing values with a constant. │
+  ·                                  ╰──────────────────────────────────────╯

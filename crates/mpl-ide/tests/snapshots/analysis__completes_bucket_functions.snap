@@ -1,0 +1,15 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "completions_snapshot(\"from prod:requests | bucket by le using \",\nPosition::new(0, 40), \"histogram\",)"
+---
+SOURCE:
+
+1 │ from prod:requests | bucket by le using
+  ·                                         ┬
+  ·                                         ╰ histogram                        ←
+  ·                                           interpolate_cumulative_histogram
+  ·                                           interpolate_delta_histogram
+
+EDITED:
+
+1 │ from prod:requests | bucket by le using histogram

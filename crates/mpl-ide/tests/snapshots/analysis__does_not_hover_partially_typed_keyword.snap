@@ -1,0 +1,11 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "hover_snapshot(\"from prod:requests\\n| whe\\n| map rate\", Position::new(1, 4),)"
+---
+SOURCE:
+
+1 │ from prod:requests
+2 │ | whe
+  ·     ┬
+  ·     ╰ None
+3 │ | map rate

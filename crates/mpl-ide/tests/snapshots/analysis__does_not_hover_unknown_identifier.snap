@@ -1,0 +1,9 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "hover_snapshot(\"from prod:requests | map mystery\", Position::new(0, 28),)"
+---
+SOURCE:
+
+1 │ from prod:requests | map mystery
+  ·                             ┬
+  ·                             ╰ None

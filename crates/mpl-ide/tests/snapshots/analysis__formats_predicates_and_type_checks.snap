@@ -1,0 +1,17 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "format_snapshot(input, &format(input))"
+---
+SOURCE:
+
+from    prod : requests
+             |    where     service
+       ==       "api"
+
+ and       not
+          status    is       string
+
+FORMATTED:
+
+from prod:requests
+| where service == "api" and not status is string

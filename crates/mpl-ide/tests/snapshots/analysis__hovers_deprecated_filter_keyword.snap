@@ -1,0 +1,11 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "hover_snapshot(\"from prod:requests | filter status == 500\",\nPosition::new(0, 23),)"
+---
+SOURCE:
+
+1 │ from prod:requests | filter status == 500
+  ·                      ──┬───
+  ·                        │ ╭───────────────────────────────╮
+  ·                        ╰─┤ Deprecated alias for `where`. │
+  ·                          ╰───────────────────────────────╯

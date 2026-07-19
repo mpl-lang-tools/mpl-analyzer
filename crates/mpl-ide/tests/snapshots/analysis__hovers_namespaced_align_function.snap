@@ -1,0 +1,13 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "hover_snapshot(\"from prod:requests | align $__interval using prom::rate\",\nPosition::new(0, 50),)"
+---
+SOURCE:
+
+1 │ from prod:requests | align $__interval using prom::rate
+  ·                                              ─────┬────
+  ·                                                   │ ╭────────────────────────────────╮
+  ·                                                   ╰─┤ `prom::rate`                   │
+  ·                                                     │                                │
+  ·                                                     │ PromQL-style rate calculation. │
+  ·                                                     ╰────────────────────────────────╯

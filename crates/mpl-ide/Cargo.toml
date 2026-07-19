@@ -13,4 +13,4 @@ serde.workspace = true
 
 [dev-dependencies]
 insta.workspace = true
-miette.workspace = true
+mpl-code-render.workspace = true

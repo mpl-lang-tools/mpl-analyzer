@@ -1,0 +1,13 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "hover_snapshot(\"compute total using +\", Position::new(0, 20),)"
+---
+SOURCE:
+
+1 │ compute total using +
+  ·                     ┬
+  ·                     │ ╭──────────────╮
+  ·                     ╰─┤ `+`          │
+  ·                       │              │
+  ·                       │ Add results. │
+  ·                       ╰──────────────╯

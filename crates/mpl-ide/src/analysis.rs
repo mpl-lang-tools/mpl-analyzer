@@ -9,7 +9,7 @@ use serde::Serialize;
 
 use mpl_hir::{
     Diagnostic,
-    stdlib::{FUNCTIONS, Function, FunctionKind},
+    stdlib::{FUNCTIONS, Function, FunctionKind, FunctionParameter},
     validate,
 };
 use mpl_syntax::{SyntaxKind as TokenKind, SyntaxNode, TextRange, parse_syntax};
@@ -18,6 +18,7 @@ use mpl_syntax::{SyntaxKind as TokenKind, SyntaxNode, TextRange, parse_syntax};
 pub struct CompletionItem {
     pub label: String,
     pub detail: Option<String>,
+    pub replacement_range: TextRange,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -30,6 +31,16 @@ pub struct Hover {
 pub struct SignatureHelp {
     pub range: TextRange,
     pub signature: String,
+    pub documentation: Option<String>,
+    pub parameters: Vec<SignatureParameter>,
+    pub active_parameter: Option<usize>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SignatureParameter {
+    pub label: TextRange,
+    pub documentation: Option<String>,
+    pub variadic: bool,
 }
 
 pub fn diagnostics(input: &str) -> Vec<Diagnostic> {
@@ -52,30 +63,27 @@ pub fn format(input: &str) -> String {
 pub fn completions(input: &str, offset: usize) -> Vec<CompletionItem> {
     let parsed = parse_syntax(input);
     let tokens = tokens_from_syntax(parsed.syntax());
-    let offset = offset.min(input.len());
+    let offset = char_boundary_at_or_before(input, offset.min(input.len()));
+    let prefix = completion_prefix(input, offset);
+    let replacement_range = TextRange::new(offset - prefix.len(), offset);
 
-    if is_pipe_keyword_position(&tokens, offset) {
-        return pipe_keyword_items();
-    }
-
-    if let Some(kind) = function_completion_kind(&tokens, offset) {
-        return function_items(kind);
-    }
-
-    if is_after_comparison(&tokens, offset) {
-        return literal_items();
-    }
-
-    if is_param_position(&tokens, offset) || is_interval_param_completion_position(&tokens, offset)
+    let items = if is_pipe_keyword_position(&tokens, offset) {
+        pipe_keyword_items(replacement_range)
+    } else if let Some(kind) = function_completion_kind(&tokens, offset) {
+        function_items(kind, replacement_range)
+    } else if is_after_comparison(&tokens, offset) {
+        literal_items(replacement_range)
+    } else if is_param_position(&tokens, offset)
+        || is_interval_param_completion_position(&tokens, offset)
     {
-        return vec![completion("$__interval", "parameter")];
-    }
+        vec![completion("$__interval", "parameter", replacement_range)]
+    } else if is_source_start(&tokens, offset) {
+        source_items(replacement_range)
+    } else {
+        Vec::new()
+    };
 
-    if is_source_start(&tokens, offset) {
-        return source_items();
-    }
-
-    Vec::new()
+    filter_completions(items, prefix)
 }
 
 pub fn hover(input: &str, offset: usize) -> Option<Hover> {
@@ -86,7 +94,7 @@ pub fn hover(input: &str, offset: usize) -> Option<Hover> {
     if let Some((function, range)) = function_at(&tokens, offset) {
         return Some(Hover {
             range,
-            contents: format!("{}\n\n{}", function.signature, function.docs),
+            contents: format!("`{}`\n\n{}", function.signature, function.docs),
         });
     }
 
@@ -107,16 +115,27 @@ pub fn signature_help(input: &str, offset: usize) -> Option<SignatureHelp> {
     let offset = offset.min(input.len());
 
     if let Some((function, range)) = function_for_signature(&tokens, offset) {
+        let parameters = signature_parameters(function.signature, function.parameters());
+        let active_parameter = active_function_parameter(&tokens, offset, range, &parameters);
         return Some(SignatureHelp {
             range,
             signature: function.signature.to_string(),
+            documentation: Some(function.docs.to_string()),
+            parameters,
+            active_parameter,
         });
     }
 
     let token = token_near(&tokens, offset)?;
-    keyword_signature(token).map(|signature| SignatureHelp {
-        range: token.range,
-        signature: signature.to_string(),
+    keyword_signature(token).map(|signature| {
+        let parameters = signature_parameters(signature, keyword_parameters(token));
+        SignatureHelp {
+            range: token.range,
+            signature: signature.to_string(),
+            documentation: keyword_docs(token).map(str::to_string),
+            parameters,
+            active_parameter: None,
+        }
     })
 }
 
@@ -309,14 +328,47 @@ fn trim_blank_lines(out: &mut String) {
     }
 }
 
-fn completion(label: &str, detail: &str) -> CompletionItem {
+fn completion(label: &str, detail: &str, replacement_range: TextRange) -> CompletionItem {
     CompletionItem {
         label: label.to_string(),
         detail: Some(detail.to_string()),
+        replacement_range,
     }
 }
 
-fn pipe_keyword_items() -> Vec<CompletionItem> {
+fn filter_completions(items: Vec<CompletionItem>, prefix: &str) -> Vec<CompletionItem> {
+    if prefix.is_empty() {
+        return items;
+    }
+
+    items
+        .into_iter()
+        .filter(|item| item.label.starts_with(prefix))
+        .collect()
+}
+
+fn completion_prefix(input: &str, offset: usize) -> &str {
+    let prefix = &input[..offset];
+    let start = prefix
+        .char_indices()
+        .rev()
+        .find(|(_, character)| !is_completion_character(*character))
+        .map_or(0, |(index, character)| index + character.len_utf8());
+    &input[start..offset]
+}
+
+fn is_completion_character(character: char) -> bool {
+    character.is_alphanumeric() || matches!(character, '_' | ':' | '$' | '#' | '/' | '"')
+}
+
+fn char_boundary_at_or_before(input: &str, mut offset: usize) -> usize {
+    while !input.is_char_boundary(offset) {
+        offset -= 1;
+    }
+    offset
+}
+
+fn pipe_keyword_items(replacement_range: TextRange) -> Vec<CompletionItem> {
     [
         ("where", "filter rows"),
         ("filter", "deprecated filter alias"),
@@ -328,22 +380,22 @@ fn pipe_keyword_items() -> Vec<CompletionItem> {
         ("as", "alias source"),
     ]
     .into_iter()
-    .map(|(label, detail)| completion(label, detail))
+    .map(|(label, detail)| completion(label, detail, replacement_range))
     .collect()
 }
 
-fn source_items() -> Vec<CompletionItem> {
+fn source_items(replacement_range: TextRange) -> Vec<CompletionItem> {
     [
         ("from", "source query"),
         ("compute", "computed query"),
         ("set", "directive"),
     ]
     .into_iter()
-    .map(|(label, detail)| completion(label, detail))
+    .map(|(label, detail)| completion(label, detail, replacement_range))
     .collect()
 }
 
-fn literal_items() -> Vec<CompletionItem> {
+fn literal_items(replacement_range: TextRange) -> Vec<CompletionItem> {
     [
         ("true", "boolean literal"),
         ("false", "boolean literal"),
@@ -353,15 +405,15 @@ fn literal_items() -> Vec<CompletionItem> {
         ("$__interval", "parameter"),
     ]
     .into_iter()
-    .map(|(label, detail)| completion(label, detail))
+    .map(|(label, detail)| completion(label, detail, replacement_range))
     .collect()
 }
 
-fn function_items(kind: FunctionKind) -> Vec<CompletionItem> {
+fn function_items(kind: FunctionKind, replacement_range: TextRange) -> Vec<CompletionItem> {
     FUNCTIONS
         .iter()
         .filter(|function| function.kind == kind)
-        .map(|function| completion(function.name, function.signature))
+        .map(|function| completion(function.name, function.signature, replacement_range))
         .collect()
 }
 
@@ -452,8 +504,7 @@ fn completion_context_offset(tokens: &[Token], offset: usize) -> usize {
 }
 
 fn function_at(tokens: &[Token], offset: usize) -> Option<(&'static Function, TextRange)> {
-    let token = token_near(tokens, offset)?;
-    function_name_around(tokens, token.range.start)
+    function_name_around(tokens, offset)
         .and_then(|(name, range)| find_function(tokens, range.start, &name).map(|f| (f, range)))
 }
 
@@ -471,8 +522,93 @@ fn function_for_signature(
         .and_then(|(name, range)| find_function(tokens, range.start, &name).map(|f| (f, range)))
 }
 
+fn signature_parameters(
+    signature: &str,
+    parameter_specs: &[FunctionParameter],
+) -> Vec<SignatureParameter> {
+    let mut search_start = 0;
+    parameter_specs
+        .iter()
+        .map(|parameter| {
+            let relative_start = signature[search_start..]
+                .find(parameter.label)
+                .unwrap_or_else(|| {
+                    panic!(
+                        "parameter {:?} should occur in signature {signature:?}",
+                        parameter.label
+                    )
+                });
+            let start = search_start + relative_start;
+            let end = start + parameter.label.len();
+            search_start = end;
+            SignatureParameter {
+                label: TextRange::new(start, end),
+                documentation: Some(parameter.docs.to_string()),
+                variadic: parameter.variadic,
+            }
+        })
+        .collect()
+}
+
+fn active_function_parameter(
+    tokens: &[Token],
+    offset: usize,
+    function_range: TextRange,
+    parameters: &[SignatureParameter],
+) -> Option<usize> {
+    if parameters.is_empty() {
+        return None;
+    }
+
+    let function_end = tokens
+        .iter()
+        .rposition(|token| token.range.end == function_range.end)?;
+    let Some(lparen) = next_meaningful_index(tokens, function_end) else {
+        return Some(0);
+    };
+    if tokens[lparen].kind != TokenKind::LParen || tokens[lparen].range.start > offset {
+        return Some(0);
+    }
+
+    let mut argument = 0;
+    let mut depth = 0;
+    for token in tokens.iter().skip(lparen + 1) {
+        if token.range.start >= offset {
+            break;
+        }
+        match token.kind {
+            TokenKind::LParen | TokenKind::LBracket | TokenKind::LBrace => depth += 1,
+            TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace if depth > 0 => depth -= 1,
+            TokenKind::RParen if depth == 0 => break,
+            TokenKind::Comma if depth == 0 => argument += 1,
+            _ => {}
+        }
+    }
+
+    if argument < parameters.len() {
+        Some(argument)
+    } else if parameters
+        .last()
+        .is_some_and(|parameter| parameter.variadic)
+    {
+        Some(parameters.len() - 1)
+    } else {
+        None
+    }
+}
+
 fn function_name_around(tokens: &[Token], offset: usize) -> Option<(String, TextRange)> {
-    let index = token_index_near(tokens, offset)?;
+    let index = tokens
+        .iter()
+        .position(|token| {
+            (is_name_part(token) || is_operator(token))
+                && token.range.start <= offset
+                && offset <= token.range.end
+        })
+        .or_else(|| {
+            let index = token_index_before(tokens, offset)?;
+            (is_name_part(&tokens[index]) || is_operator(&tokens[index])).then_some(index)
+        })?;
     let token = &tokens[index];
     if !is_name_part(token) && !is_operator(token) {
         return None;
@@ -610,6 +746,131 @@ fn keyword_signature(token: &Token) -> Option<&'static str> {
     }
 }
 
+const SET_PARAMETERS: &[FunctionParameter] = &[
+    FunctionParameter {
+        label: "<directive>",
+        docs: "The directive name.",
+        variadic: false,
+    },
+    FunctionParameter {
+        label: "<value>",
+        docs: "The directive value.",
+        variadic: false,
+    },
+];
+const FROM_PARAMETERS: &[FunctionParameter] = &[
+    FunctionParameter {
+        label: "<dataset>",
+        docs: "The source dataset.",
+        variadic: false,
+    },
+    FunctionParameter {
+        label: "<metric>",
+        docs: "The source metric.",
+        variadic: false,
+    },
+    FunctionParameter {
+        label: "<range>",
+        docs: "The optional source range.",
+        variadic: false,
+    },
+    FunctionParameter {
+        label: "<alias>",
+        docs: "The optional source alias.",
+        variadic: false,
+    },
+];
+const WHERE_PARAMETERS: &[FunctionParameter] = &[
+    FunctionParameter {
+        label: "<field>",
+        docs: "The field to test.",
+        variadic: false,
+    },
+    FunctionParameter {
+        label: "<operator>",
+        docs: "The comparison operator.",
+        variadic: false,
+    },
+    FunctionParameter {
+        label: "<literal>",
+        docs: "The value to compare against.",
+        variadic: false,
+    },
+];
+const FUNCTION_PARAMETER: &[FunctionParameter] = &[FunctionParameter {
+    label: "<function>",
+    docs: "The function used by the transformation.",
+    variadic: false,
+}];
+const ALIGN_PARAMETERS: &[FunctionParameter] = &[
+    FunctionParameter {
+        label: "<window>",
+        docs: "The alignment window.",
+        variadic: false,
+    },
+    FunctionParameter {
+        label: "<function>",
+        docs: "The aggregate function.",
+        variadic: false,
+    },
+];
+const GROUP_PARAMETERS: &[FunctionParameter] = &[
+    FunctionParameter {
+        label: "<tag...>",
+        docs: "The tags used to group series.",
+        variadic: true,
+    },
+    FunctionParameter {
+        label: "<function>",
+        docs: "The aggregate function.",
+        variadic: false,
+    },
+];
+const ASSIGNMENT_PARAMETERS: &[FunctionParameter] = &[
+    FunctionParameter {
+        label: "<name>",
+        docs: "The assigned name.",
+        variadic: false,
+    },
+    FunctionParameter {
+        label: "<expr>",
+        docs: "The assigned expression.",
+        variadic: false,
+    },
+];
+const COMPUTE_PARAMETERS: &[FunctionParameter] = &[
+    FunctionParameter {
+        label: "<name>",
+        docs: "The result name.",
+        variadic: false,
+    },
+    FunctionParameter {
+        label: "<function>",
+        docs: "The compute function.",
+        variadic: false,
+    },
+];
+const ALIAS_PARAMETER: &[FunctionParameter] = &[FunctionParameter {
+    label: "<alias>",
+    docs: "The assigned alias.",
+    variadic: false,
+}];
+
+fn keyword_parameters(token: &Token) -> &'static [FunctionParameter] {
+    match token.text.as_str() {
+        "set" => SET_PARAMETERS,
+        "from" => FROM_PARAMETERS,
+        "where" | "filter" => WHERE_PARAMETERS,
+        "map" | "using" => FUNCTION_PARAMETER,
+        "align" => ALIGN_PARAMETERS,
+        "group" | "bucket" => GROUP_PARAMETERS,
+        "extend" => ASSIGNMENT_PARAMETERS,
+        "compute" => COMPUTE_PARAMETERS,
+        "as" => ALIAS_PARAMETER,
+        _ => &[],
+    }
+}
+
 fn token_near(tokens: &[Token], offset: usize) -> Option<&Token> {
     token_at(tokens, offset).or_else(|| previous_meaningful_token(tokens, offset))
 }
@@ -618,15 +879,6 @@ fn token_at(tokens: &[Token], offset: usize) -> Option<&Token> {
     tokens
         .iter()
         .find(|token| !is_trivia(token) && token.range.start <= offset && offset <= token.range.end)
-}
-
-fn token_index_near(tokens: &[Token], offset: usize) -> Option<usize> {
-    tokens
-        .iter()
-        .position(|token| {
-            !is_trivia(token) && token.range.start <= offset && offset <= token.range.end
-        })
-        .or_else(|| token_index_before(tokens, offset))
 }
 
 fn token_index_before(tokens: &[Token], offset: usize) -> Option<usize> {
@@ -648,6 +900,15 @@ fn previous_meaningful_index(tokens: &[Token], before_index: usize) -> Option<us
         .enumerate()
         .take(before_index)
         .rev()
+        .find(|(_, token)| !is_trivia(token))
+        .map(|(index, _)| index)
+}
+
+fn next_meaningful_index(tokens: &[Token], after_index: usize) -> Option<usize> {
+    tokens
+        .iter()
+        .enumerate()
+        .skip(after_index + 1)
         .find(|(_, token)| !is_trivia(token))
         .map(|(index, _)| index)
 }

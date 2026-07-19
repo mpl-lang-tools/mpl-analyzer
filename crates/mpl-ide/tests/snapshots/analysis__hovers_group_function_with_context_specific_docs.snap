@@ -1,0 +1,13 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "hover_snapshot(\"from prod:requests | group by host using avg\",\nPosition::new(0, 42),)"
+---
+SOURCE:
+
+1 │ from prod:requests | group by host using avg
+  ·                                          ─┬─
+  ·                                           │ ╭─────────────────────────╮
+  ·                                           ╰─┤ `avg`                   │
+  ·                                             │                         │
+  ·                                             │ Average grouped series. │
+  ·                                             ╰─────────────────────────╯

@@ -1,0 +1,18 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "signature_snapshot(\"from prod:requests | bucket by le using interpolate_cumulative_histogram(linear, 0.5, 0.9)\",\nPosition::new(0, 75),)"
+---
+SOURCE:
+
+1 │ from prod:requests | bucket by le using interpolate_cumulative_histogram(linear, 0.5, 0.9)
+  ·                                                                            ┬
+  ·                                                                            │ ╭──────────────────────────────────────────────────╮
+  ·                                                                            ╰─┤ interpolate_cumulative_histogram(mode, specs...) │
+  ·                                                                              │                                                  │
+  ·                                                                              │ Aggregate cumulative histogram series.           │
+  ·                                                                              │                                                  │
+  ·                                                                              │ parameters:                                      │
+  ·                                                                              │                                                  │
+  ·                                                                              │ 1. (mode) The histogram interpolation mode. ←    │
+  ·                                                                              │ 2. (specs...) The bucket specifications.         │
+  ·                                                                              ╰──────────────────────────────────────────────────╯

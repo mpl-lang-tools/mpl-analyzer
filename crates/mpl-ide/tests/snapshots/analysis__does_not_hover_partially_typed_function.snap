@@ -1,0 +1,12 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "hover_snapshot(\"from prod:requests\\n| where status == true\\n| map fill::con\\n| as requests\",\nPosition::new(2, 13),)"
+---
+SOURCE:
+
+1 │ from prod:requests
+2 │ | where status == true
+3 │ | map fill::con
+  ·              ┬
+  ·              ╰ None
+4 │ | as requests

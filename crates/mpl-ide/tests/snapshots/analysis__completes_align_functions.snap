@@ -1,0 +1,19 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "completions_snapshot(\"from prod:requests | align $__interval using \",\nPosition::new(0, 45), \"prom::rate\",)"
+---
+SOURCE:
+
+1 │ from prod:requests | align $__interval using
+  ·                                              ┬
+  ·                                              ╰ avg
+  ·                                                count
+  ·                                                last
+  ·                                                max
+  ·                                                min
+  ·                                                sum
+  ·                                                prom::rate ←
+
+EDITED:
+
+1 │ from prod:requests | align $__interval using prom::rate

@@ -1,0 +1,13 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "completions_snapshot(\"from prod:requests | align \", Position::new(0, 27),\n\"$__interval\",)"
+---
+SOURCE:
+
+1 │ from prod:requests | align
+  ·                            ┬
+  ·                            ╰ $__interval ←
+
+EDITED:
+
+1 │ from prod:requests | align $__interval

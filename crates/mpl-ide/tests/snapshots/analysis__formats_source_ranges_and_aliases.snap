@@ -4,9 +4,14 @@ expression: "format_snapshot(input, &format(input))"
 ---
 SOURCE:
 
-from prod:requests|align $__interval using avg;
+
+
+http  :   request_duration
+       [   5m   ]
+
+  as       latency
+
 
 FORMATTED:
 
-from prod:requests
-| align $__interval using avg;
+http:request_duration[5m] as latency

@@ -1,0 +1,13 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "hover_snapshot(\"from prod:requests | bucket by le using histogram(\\\"le\\\")\",\nPosition::new(0, 44),)"
+---
+SOURCE:
+
+1 │ from prod:requests | bucket by le using histogram("le")
+  ·                                         ────┬────
+  ·                                             │ ╭──────────────────────────────────────────────╮
+  ·                                             ╰─┤ `histogram(specs...)`                        │
+  ·                                               │                                              │
+  ·                                               │ Aggregate non-histogram series into buckets. │
+  ·                                               ╰──────────────────────────────────────────────╯

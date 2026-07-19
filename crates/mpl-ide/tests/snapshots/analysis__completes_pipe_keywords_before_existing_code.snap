@@ -1,10 +1,10 @@
 ---
 source: crates/mpl-ide/tests/analysis.rs
-expression: "completions_snapshot(\"from prod:requests | \", Position::new(0, 21), \"map\",)"
+expression: "completions_snapshot(\"from prod:requests |     rate\", Position::new(0, 21),\n\"map\",)"
 ---
 SOURCE:
 
-1 │ from prod:requests |
+1 │ from prod:requests |     rate
   ·                      ┬
   ·                      ╰ where
   ·                        filter
@@ -17,4 +17,4 @@ SOURCE:
 
 EDITED:
 
-1 │ from prod:requests | map
+1 │ from prod:requests | map    rate

@@ -1,0 +1,11 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "hover_snapshot(\"from prod:requests | align $__interval using avg\",\nPosition::new(0, 21),)"
+---
+SOURCE:
+
+1 │ from prod:requests | align $__interval using avg
+  ·                      ┬────
+  ·                      │ ╭───────────────────────────────────────────────────────────────────╮
+  ·                      ╰─┤ Aligns datapoints into fixed windows using an aggregate function. │
+  ·                        ╰───────────────────────────────────────────────────────────────────╯

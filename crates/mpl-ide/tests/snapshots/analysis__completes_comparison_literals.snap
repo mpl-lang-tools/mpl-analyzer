@@ -1,0 +1,18 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "completions_snapshot(\"from prod:requests | where status == \",\nPosition::new(0, 37), \"true\",)"
+---
+SOURCE:
+
+1 │ from prod:requests | where status ==
+  ·                                      ┬
+  ·                                      ╰ true        ←
+  ·                                        false
+  ·                                        ""
+  ·                                        #//
+  ·                                        0
+  ·                                        $__interval
+
+EDITED:
+
+1 │ from prod:requests | where status == true

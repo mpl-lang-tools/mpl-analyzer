@@ -2,6 +2,7 @@
 resolver = "3"
 members = [
     "crates/mpl-cli",
+    "crates/mpl-code-render",
     "crates/mpl-hir",
     "crates/mpl-ide",
     "crates/mpl-lsp",
@@ -16,6 +17,7 @@ rust-version = "1.94.1"
 authors      = ["Samuel Cristobal <samu@messy.page>"]
 
 [workspace.dependencies]
+mpl-code-render = { path = "crates/mpl-code-render" }
 mpl-hir     = { path = "crates/mpl-hir" }
 mpl-ide     = { path = "crates/mpl-ide" }
 mpl-lsp     = { path = "crates/mpl-lsp" }
@@ -28,3 +30,4 @@ display_tree = "1.1.2"
 insta        = "1.43.2"
 miette       = { version = "7.6.0", features = ["fancy"] }
 ron          = "0.8.1"
+unicode-width = "0.2.2"

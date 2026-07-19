@@ -1,0 +1,17 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "completions_snapshot(\"from prod:requests | group by host using \",\nPosition::new(0, 41), \"sum\",)"
+---
+SOURCE:
+
+1 │ from prod:requests | group by host using
+  ·                                          ┬
+  ·                                          ╰ avg
+  ·                                            count
+  ·                                            max
+  ·                                            min
+  ·                                            sum   ←
+
+EDITED:
+
+1 │ from prod:requests | group by host using sum

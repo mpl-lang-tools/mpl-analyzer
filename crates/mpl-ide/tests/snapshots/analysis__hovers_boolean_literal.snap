@@ -1,0 +1,9 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "hover_snapshot(\"from prod:requests | where ok == true\", Position::new(0, 34),)"
+---
+SOURCE:
+
+1 │ from prod:requests | where ok == true
+  ·                                   ┬
+  ·                                   ╰ None

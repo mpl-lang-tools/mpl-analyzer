@@ -10,10 +10,10 @@ use lsp_server::{Connection, Message, Request, RequestId, Response};
 use lsp_types::{
     CompletionOptions, CompletionResponse, Diagnostic, DiagnosticSeverity,
     DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
-    DocumentFormattingParams, HoverContents, HoverProviderCapability, InitializeParams,
-    MarkedString, OneOf, Position, PublishDiagnosticsParams, Range, ServerCapabilities,
-    SignatureHelpOptions, SignatureInformation, TextDocumentSyncCapability, TextDocumentSyncKind,
-    TextEdit, Uri,
+    DocumentFormattingParams, Documentation, HoverContents, HoverProviderCapability,
+    InitializeParams, MarkupContent, MarkupKind, OneOf, ParameterInformation, ParameterLabel,
+    Position, PublishDiagnosticsParams, Range, ServerCapabilities, SignatureHelpOptions,
+    SignatureInformation, TextDocumentSyncCapability, TextDocumentSyncKind, TextEdit, Uri,
     notification::{
         DidChangeTextDocument, DidCloseTextDocument, DidOpenTextDocument, Notification,
         PublishDiagnostics,
@@ -127,11 +127,7 @@ fn handle_request(
                     let offset = position_to_offset(text, position);
                     mpl_ide::completions(text, offset)
                         .into_iter()
-                        .map(|item| lsp_types::CompletionItem {
-                            label: item.label,
-                            detail: item.detail,
-                            ..Default::default()
-                        })
+                        .map(|item| completion_item_to_lsp(text, item))
                         .collect::<Vec<_>>()
                 })
                 .unwrap_or_default();
@@ -147,10 +143,7 @@ fn handle_request(
             let position = params.text_document_position_params.position;
             let hover = documents.get(&uri).and_then(|text| {
                 let offset = position_to_offset(text, position);
-                mpl_ide::hover(text, offset).map(|hover| lsp_types::Hover {
-                    contents: HoverContents::Scalar(MarkedString::String(hover.contents)),
-                    range: Some(text_range_to_lsp(text, hover.range.start, hover.range.end)),
-                })
+                mpl_ide::hover(text, offset).map(|hover| hover_to_lsp(text, hover))
             });
             send_ok(connection, request.id, serde_json::to_value(hover)?)?;
         }
@@ -160,16 +153,7 @@ fn handle_request(
             let position = params.text_document_position_params.position;
             let signature_help = documents.get(&uri).and_then(|text| {
                 let offset = position_to_offset(text, position);
-                mpl_ide::signature_help(text, offset).map(|help| lsp_types::SignatureHelp {
-                    signatures: vec![SignatureInformation {
-                        label: help.signature,
-                        documentation: None,
-                        parameters: None,
-                        active_parameter: None,
-                    }],
-                    active_signature: Some(0),
-                    active_parameter: Some(0),
-                })
+                mpl_ide::signature_help(text, offset).map(signature_help_to_lsp)
             });
             send_ok(
                 connection,
@@ -285,6 +269,72 @@ fn text_range_to_lsp(text: &str, start: usize, end: usize) -> Range {
         offset_to_position(text, start),
         offset_to_position(text, end),
     )
+}
+
+fn completion_item_to_lsp(text: &str, item: mpl_ide::CompletionItem) -> lsp_types::CompletionItem {
+    let edit = TextEdit {
+        range: text_range_to_lsp(
+            text,
+            item.replacement_range.start,
+            item.replacement_range.end,
+        ),
+        new_text: item.label.clone(),
+    };
+    lsp_types::CompletionItem {
+        label: item.label,
+        detail: item.detail,
+        text_edit: Some(edit.into()),
+        ..Default::default()
+    }
+}
+
+fn hover_to_lsp(text: &str, hover: mpl_ide::Hover) -> lsp_types::Hover {
+    lsp_types::Hover {
+        contents: HoverContents::Markup(MarkupContent {
+            kind: MarkupKind::Markdown,
+            value: hover.contents,
+        }),
+        range: Some(text_range_to_lsp(text, hover.range.start, hover.range.end)),
+    }
+}
+
+fn signature_help_to_lsp(help: mpl_ide::SignatureHelp) -> lsp_types::SignatureHelp {
+    let parameters = help
+        .parameters
+        .into_iter()
+        .map(|parameter| ParameterInformation {
+            label: ParameterLabel::LabelOffsets([
+                signature_offset_to_utf16(&help.signature, parameter.label.start),
+                signature_offset_to_utf16(&help.signature, parameter.label.end),
+            ]),
+            documentation: parameter.documentation.map(|value| {
+                Documentation::MarkupContent(MarkupContent {
+                    kind: MarkupKind::Markdown,
+                    value,
+                })
+            }),
+        })
+        .collect::<Vec<_>>();
+    let active_parameter = help.active_parameter.map(|index| index as u32);
+    lsp_types::SignatureHelp {
+        signatures: vec![SignatureInformation {
+            label: help.signature,
+            documentation: help.documentation.map(|value| {
+                Documentation::MarkupContent(MarkupContent {
+                    kind: MarkupKind::Markdown,
+                    value,
+                })
+            }),
+            parameters: (!parameters.is_empty()).then_some(parameters),
+            active_parameter,
+        }],
+        active_signature: Some(0),
+        active_parameter,
+    }
+}
+
+fn signature_offset_to_utf16(signature: &str, byte_offset: usize) -> u32 {
+    signature[..byte_offset].encode_utf16().count() as u32
 }
 
 fn full_document_range(text: &str) -> Range {
@@ -412,6 +462,119 @@ mod tests {
         assert_eq!(offset_to_position(text, 2), Position::new(1, 0));
         assert_eq!(offset_to_position(text, 6), Position::new(1, 2));
         assert_eq!(offset_to_position(text, text.len()), Position::new(1, 3));
+    }
+
+    #[test]
+    fn hover_uses_markdown_markup_content_and_source_range() {
+        let text = "from prod:requests | map fill::const(0)";
+        let hover = mpl_ide::hover(text, 31).unwrap();
+        let hover = hover_to_lsp(text, hover);
+
+        assert_eq!(
+            hover.contents,
+            HoverContents::Markup(MarkupContent {
+                kind: MarkupKind::Markdown,
+                value: "`fill::const(value)`\n\nFill missing values with a constant.".into(),
+            })
+        );
+        assert_eq!(
+            hover.range,
+            Some(Range::new(Position::new(0, 25), Position::new(0, 36),))
+        );
+    }
+
+    #[test]
+    fn signature_help_uses_markdown_documentation() {
+        let text = "from prod:requests | map fill::const()";
+        let help = mpl_ide::signature_help(text, 37).unwrap();
+        let help = signature_help_to_lsp(help);
+        let signature = &help.signatures[0];
+
+        assert_eq!(signature.label, "fill::const(value)");
+        assert_eq!(
+            signature.documentation,
+            Some(Documentation::MarkupContent(MarkupContent {
+                kind: MarkupKind::Markdown,
+                value: "Fill missing values with a constant.".into(),
+            }))
+        );
+        assert_eq!(signature.active_parameter, Some(0));
+        assert_eq!(help.active_parameter, Some(0));
+        assert_eq!(
+            signature.parameters,
+            Some(vec![ParameterInformation {
+                label: ParameterLabel::LabelOffsets([12, 17]),
+                documentation: Some(Documentation::MarkupContent(MarkupContent {
+                    kind: MarkupKind::Markdown,
+                    value: "The constant used to replace missing values.".into(),
+                })),
+            }])
+        );
+    }
+
+    #[test]
+    fn signature_help_maps_later_arguments_to_variadic_parameter() {
+        let text = "from prod:requests | bucket by le using interpolate_cumulative_histogram(linear, 0.5, 0.9)";
+        let help = mpl_ide::signature_help(text, 87).unwrap();
+        let help = signature_help_to_lsp(help);
+        let signature = &help.signatures[0];
+
+        assert_eq!(signature.active_parameter, Some(1));
+        assert_eq!(help.active_parameter, Some(1));
+        assert_eq!(
+            signature
+                .parameters
+                .as_ref()
+                .unwrap()
+                .iter()
+                .map(|parameter| parameter.label.clone())
+                .collect::<Vec<_>>(),
+            vec![
+                ParameterLabel::LabelOffsets([33, 37]),
+                ParameterLabel::LabelOffsets([39, 47]),
+            ]
+        );
+    }
+
+    #[test]
+    fn completion_edit_replaces_partial_prefix_with_full_label() {
+        let text = "from prod:requests | m    rate";
+        let item = mpl_ide::completions(text, 22).into_iter().next().unwrap();
+        let item = completion_item_to_lsp(text, item);
+
+        assert_eq!(item.label, "map");
+        assert_eq!(
+            item.text_edit,
+            Some(
+                TextEdit {
+                    range: Range::new(Position::new(0, 21), Position::new(0, 22)),
+                    new_text: "map".into(),
+                }
+                .into()
+            )
+        );
+    }
+
+    #[test]
+    fn completion_edit_inserts_at_cursor_without_a_prefix() {
+        let text = "from prod:requests | ";
+        let item = mpl_ide::completions(text, text.len())
+            .into_iter()
+            .next()
+            .unwrap();
+        let item = completion_item_to_lsp(text, item);
+        let cursor = text.len() as u32;
+
+        assert_eq!(
+            item.text_edit,
+            Some(
+                TextEdit {
+                    range: Range::new(Position::new(0, cursor), Position::new(0, cursor)),
+                    new_text: item.label,
+                }
+                .into()
+            )
+        );
     }
 
     #[test]

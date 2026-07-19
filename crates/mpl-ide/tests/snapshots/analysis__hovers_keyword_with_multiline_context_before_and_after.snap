@@ -1,0 +1,14 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "hover_snapshot(\"from prod:requests\\n| where status ==\\n| map rate\\n| as requests\",\nPosition::new(1, 3),)"
+---
+SOURCE:
+
+1 │ from prod:requests
+2 │ | where status ==
+  ·   ─┬───
+  ·    │ ╭──────────────────────────────────────╮
+  ·    ╰─┤ Filters datapoints with a predicate. │
+  ·      ╰──────────────────────────────────────╯
+3 │ | map rate
+4 │ | as requests

@@ -1,0 +1,17 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "hover_snapshot(\"set timezone = \\\"UTC\\\";\\nfrom prod:requests\\n| where status ==\\n| map fill::const(\\n| align $__interval using\",\nPosition::new(3, 14),)"
+---
+SOURCE:
+
+1 │ set timezone = "UTC";
+2 │ from prod:requests
+3 │ | where status ==
+4 │ | map fill::const(
+  ·       ────────┬──
+  ·               │ ╭──────────────────────────────────────╮
+  ·               ╰─┤ `fill::const(value)`                 │
+  ·                 │                                      │
+  ·                 │ Fill missing values with a constant. │
+  ·                 ╰──────────────────────────────────────╯
+5 │ | align $__interval using

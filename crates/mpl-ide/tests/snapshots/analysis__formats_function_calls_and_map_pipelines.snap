@@ -1,0 +1,21 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "format_snapshot(input, &format(input))"
+---
+SOURCE:
+
+from prod:requests
+  |       map
+              fill  ::  const (
+       0
+                            )
+
+
+
+         |map       rate
+
+FORMATTED:
+
+from prod:requests
+| map fill::const(0)
+| map rate

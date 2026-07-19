@@ -1,0 +1,24 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "format_snapshot(input, &format(input))"
+---
+SOURCE:
+
+(
+       cpu : usage [ 1h ]
+ |map       rate,
+
+mem : rss [1h]
+                )
+        | compute
+ total       using avg
+
+
+ |as        total_usage
+
+FORMATTED:
+
+(cpu:usage[1h]
+| map rate, mem:rss[1h])
+| compute total using avg
+| as total_usage
