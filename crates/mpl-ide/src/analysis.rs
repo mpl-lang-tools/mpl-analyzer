@@ -126,15 +126,15 @@ pub fn signature_help(input: &str, offset: usize) -> Option<SignatureHelp> {
         });
     }
 
-    let token = token_near(&tokens, offset)?;
-    keyword_signature(token).map(|signature| {
+    keyword_for_signature(&tokens, offset).map(|(token, signature)| {
         let parameters = signature_parameters(signature, keyword_parameters(token));
+        let active_parameter = active_keyword_parameter(&tokens, offset, token, &parameters);
         SignatureHelp {
             range: token.range,
             signature: signature.to_string(),
             documentation: keyword_docs(token).map(str::to_string),
             parameters,
-            active_parameter: None,
+            active_parameter,
         }
     })
 }
@@ -743,6 +743,54 @@ fn keyword_signature(token: &Token) -> Option<&'static str> {
         "using" => Some("using <function>"),
         "as" => Some("as <alias>"),
         _ => None,
+    }
+}
+
+fn keyword_for_signature(tokens: &[Token], offset: usize) -> Option<(&Token, &'static str)> {
+    if let Some(token) = token_near(tokens, offset)
+        && let Some(signature) = keyword_signature(token)
+    {
+        return Some((token, signature));
+    }
+
+    for token in tokens
+        .iter()
+        .rev()
+        .filter(|token| token.range.start <= offset)
+    {
+        if matches!(token.kind, TokenKind::Pipe | TokenKind::Semicolon) {
+            return None;
+        }
+        if matches!(token.text.as_str(), "group" | "bucket")
+            && let Some(signature) = keyword_signature(token)
+        {
+            return Some((token, signature));
+        }
+    }
+    None
+}
+
+fn active_keyword_parameter(
+    tokens: &[Token],
+    offset: usize,
+    keyword: &Token,
+    parameters: &[SignatureParameter],
+) -> Option<usize> {
+    if parameters.is_empty() || offset <= keyword.range.end {
+        return None;
+    }
+
+    match keyword.text.as_str() {
+        "group" | "bucket" => {
+            let after_using = tokens.iter().any(|token| {
+                token.kind == TokenKind::Keyword
+                    && token.text == "using"
+                    && token.range.start > keyword.range.end
+                    && token.range.end <= offset
+            });
+            Some(usize::from(after_using).min(parameters.len() - 1))
+        }
+        _ => Some(0),
     }
 }
 

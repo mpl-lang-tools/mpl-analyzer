@@ -1,17 +1,19 @@
 ---
 source: crates/mpl-ide/tests/analysis.rs
-expression: "signature_snapshot(\"from prod:requests | map rate\", Position::new(0, 27),)"
+expression: "signature_snapshot(\"from prod:requests\\n| map rate\\n| where status == true\",\nPosition::new(1, 8),)"
 ---
 SOURCE:
 
-1 │ from prod:requests | map rate
-  ·                            ┬
-  ·                            │ ╭────────────────────────────╮
-  ·                            ╰─┤ rate                       │
-  ·                              │                            │
-  ·                              │ Per-second rate of change. │
-  ·                              │                            │
-  ·                              │ parameters:                │
-  ·                              │                            │
-  ·                              │ None                       │
-  ·                              ╰────────────────────────────╯
+1 │ from prod:requests
+2 │ | map rate
+  ·         ┬
+  ·         │ ╭────────────────────────────╮
+  ·         ╰─┤ rate                       │
+  ·           │                            │
+  ·           │ Per-second rate of change. │
+  ·           │                            │
+  ·           │ parameters:                │
+  ·           │                            │
+  ·           │ None                       │
+  ·           ╰────────────────────────────╯
+3 │ | where status == true

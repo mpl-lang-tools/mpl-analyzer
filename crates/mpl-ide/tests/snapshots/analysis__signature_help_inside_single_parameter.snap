@@ -1,17 +1,21 @@
 ---
 source: crates/mpl-ide/tests/analysis.rs
-expression: "signature_snapshot(\"from prod:requests | map fill::const(100)\",\nPosition::new(0, 38),)"
+expression: "signature_snapshot(\"from prod:requests\\n| map fill::const(\\n    100\\n)\\n| as filled\",\nPosition::new(2, 5),)"
 ---
 SOURCE:
 
-1 │ from prod:requests | map fill::const(100)
-  ·                                       ┬
-  ·                                       │ ╭───────────────────────────────────────────────────────────╮
-  ·                                       ╰─┤ fill::const(value)                                        │
-  ·                                         │                                                           │
-  ·                                         │ Fill missing values with a constant.                      │
-  ·                                         │                                                           │
-  ·                                         │ parameters:                                               │
-  ·                                         │                                                           │
-  ·                                         │ 1. (value) The constant used to replace missing values. ← │
-  ·                                         ╰───────────────────────────────────────────────────────────╯
+1 │ from prod:requests
+2 │ | map fill::const(
+3 │     100
+  ·      ┬
+  ·      │ ╭───────────────────────────────────────────────────────────╮
+  ·      ╰─┤ fill::const(value)                                        │
+  ·        │                                                           │
+  ·        │ Fill missing values with a constant.                      │
+  ·        │                                                           │
+  ·        │ parameters:                                               │
+  ·        │                                                           │
+  ·        │ 1. (value) The constant used to replace missing values. ← │
+  ·        ╰───────────────────────────────────────────────────────────╯
+4 │ )
+5 │ | as filled

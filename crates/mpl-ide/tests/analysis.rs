@@ -445,80 +445,96 @@ fn does_not_hover_partially_typed_keyword() {
 #[test]
 fn signature_help_for_function() {
     insta::assert_snapshot!(signature_snapshot(
-        "from prod:requests | map fill::const()",
-        Position::new(0, 37),
+        "from prod:requests\n| map fill::const(\n    )\n| as filled",
+        Position::new(2, 4),
     ));
 }
 
 #[test]
 fn signature_help_for_keyword() {
     insta::assert_snapshot!(signature_snapshot(
-        "from prod:requests | group by host using sum",
-        Position::new(0, 21),
+        "set timezone = \"UTC\";\nfrom prod:requests\n| group by host using sum\n| map rate",
+        Position::new(2, 3),
+    ));
+}
+
+#[test]
+fn signature_help_for_group_tag() {
+    insta::assert_snapshot!(signature_snapshot(
+        "set timezone = \"UTC\";\nfrom prod:requests\n| group by host using sum\n| map rate",
+        Position::new(2, 13),
+    ));
+}
+
+#[test]
+fn signature_help_after_group_by() {
+    insta::assert_snapshot!(signature_snapshot(
+        "set timezone = \"UTC\";\nfrom prod:requests\n| group by \n| map rate",
+        Position::new(2, 11),
     ));
 }
 
 #[test]
 fn signature_help_for_function_without_parameters() {
     insta::assert_snapshot!(signature_snapshot(
-        "from prod:requests | map rate",
-        Position::new(0, 27),
+        "from prod:requests\n| map rate\n| where status == true",
+        Position::new(1, 8),
     ));
 }
 
 #[test]
 fn signature_help_inside_single_parameter() {
     insta::assert_snapshot!(signature_snapshot(
-        "from prod:requests | map fill::const(100)",
-        Position::new(0, 38),
+        "from prod:requests\n| map fill::const(\n    100\n)\n| as filled",
+        Position::new(2, 5),
     ));
 }
 
 #[test]
 fn signature_help_for_excess_non_variadic_argument() {
     insta::assert_snapshot!(signature_snapshot(
-        "from prod:requests | map fill::const(1, 2)",
-        Position::new(0, 41),
+        "from prod:requests\n| map fill::const(\n    1,\n    2)\n| map rate",
+        Position::new(3, 5),
     ));
 }
 
 #[test]
 fn signature_help_for_first_variadic_argument() {
     insta::assert_snapshot!(signature_snapshot(
-        "from prod:requests | bucket by le using histogram(0.5, 0.9, 0.99)",
-        Position::new(0, 51),
+        "from prod:requests\n| bucket by le using histogram(\n    0.5,\n    0.9,\n    0.99)\n| as histogrammed",
+        Position::new(2, 5),
     ));
 }
 
 #[test]
 fn signature_help_for_later_variadic_argument() {
     insta::assert_snapshot!(signature_snapshot(
-        "from prod:requests | bucket by le using histogram(0.5, 0.9, 0.99)",
-        Position::new(0, 62),
+        "from prod:requests\n| bucket by le using histogram(\n    0.5,\n    0.9,\n    0.99)\n| as histogrammed",
+        Position::new(4, 6),
     ));
 }
 
 #[test]
 fn signature_help_for_first_multi_parameter_argument() {
     insta::assert_snapshot!(signature_snapshot(
-        "from prod:requests | bucket by le using interpolate_cumulative_histogram(linear, 0.5, 0.9)",
-        Position::new(0, 75),
+        "from prod:requests\n| bucket by le using interpolate_cumulative_histogram(\n    linear,\n    0.5,\n    0.9)\n| as interpolated",
+        Position::new(2, 6),
     ));
 }
 
 #[test]
 fn signature_help_for_variadic_multi_parameter_argument() {
     insta::assert_snapshot!(signature_snapshot(
-        "from prod:requests | bucket by le using interpolate_cumulative_histogram(linear, 0.5, 0.9)",
-        Position::new(0, 87),
+        "from prod:requests\n| bucket by le using interpolate_cumulative_histogram(\n    linear,\n    0.5,\n    0.9)\n| as interpolated",
+        Position::new(4, 6),
     ));
 }
 
 #[test]
 fn signature_help_after_comma_in_incomplete_variadic_call() {
     insta::assert_snapshot!(signature_snapshot(
-        "from prod:requests | bucket by le using interpolate_cumulative_histogram(linear,",
-        Position::new(0, 80),
+        "from prod:requests | bucket by le using interpolate_cumulative_histogram(\n    linear,\n    0.5",
+        Position::new(1, 11),
     ));
 }
 
@@ -533,8 +549,40 @@ fn signature_help_in_multiline_variadic_call() {
 #[test]
 fn no_signature_help_for_partially_typed_function() {
     insta::assert_snapshot!(signature_snapshot(
-        "from prod:requests | map fill::con(",
-        Position::new(0, 35),
+        "from prod:requests\n| map fill::con(1)\n| as requests",
+        Position::new(1, 13),
+    ));
+}
+
+#[test]
+fn signature_help_immediately_after_opening_parenthesis() {
+    insta::assert_snapshot!(signature_snapshot(
+        "from prod:requests\n| map fill::const(\n| as later_code",
+        Position::new(1, 18),
+    ));
+}
+
+#[test]
+fn signature_help_while_typing_single_parameter() {
+    insta::assert_snapshot!(signature_snapshot(
+        "from prod:requests\n| map fill::const(10\n| as later_code",
+        Position::new(1, 20),
+    ));
+}
+
+#[test]
+fn signature_help_while_typing_first_multi_parameter() {
+    insta::assert_snapshot!(signature_snapshot(
+        "from prod:requests\n| bucket by le using interpolate_cumulative_histogram(\n    lin\n    0.5",
+        Position::new(2, 7),
+    ));
+}
+
+#[test]
+fn signature_help_while_typing_variadic_parameter() {
+    insta::assert_snapshot!(signature_snapshot(
+        "from prod:requests\n| bucket by le using interpolate_cumulative_histogram(\n    linear,\n    0.\n    0.9",
+        Position::new(3, 6),
     ));
 }
 

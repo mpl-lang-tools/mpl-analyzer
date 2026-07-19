@@ -1,17 +1,22 @@
 ---
 source: crates/mpl-ide/tests/analysis.rs
-expression: "signature_snapshot(\"from prod:requests | bucket by le using histogram(0.5, 0.9, 0.99)\",\nPosition::new(0, 62),)"
+expression: "signature_snapshot(\"from prod:requests\\n| bucket by le using histogram(\\n    0.5,\\n    0.9,\\n    0.99)\\n| as histogrammed\",\nPosition::new(4, 6),)"
 ---
 SOURCE:
 
-1 │ from prod:requests | bucket by le using histogram(0.5, 0.9, 0.99)
-  ·                                                               ┬
-  ·                                                               │ ╭──────────────────────────────────────────────╮
-  ·                                                               ╰─┤ histogram(specs...)                          │
-  ·                                                                 │                                              │
-  ·                                                                 │ Aggregate non-histogram series into buckets. │
-  ·                                                                 │                                              │
-  ·                                                                 │ parameters:                                  │
-  ·                                                                 │                                              │
-  ·                                                                 │ 1. (specs...) The bucket specifications. ←   │
-  ·                                                                 ╰──────────────────────────────────────────────╯
+1 │ from prod:requests
+2 │ | bucket by le using histogram(
+3 │     0.5,
+4 │     0.9,
+5 │     0.99)
+  ·       ┬
+  ·       │ ╭──────────────────────────────────────────────╮
+  ·       ╰─┤ histogram(specs...)                          │
+  ·         │                                              │
+  ·         │ Aggregate non-histogram series into buckets. │
+  ·         │                                              │
+  ·         │ parameters:                                  │
+  ·         │                                              │
+  ·         │ 1. (specs...) The bucket specifications. ←   │
+  ·         ╰──────────────────────────────────────────────╯
+6 │ | as histogrammed

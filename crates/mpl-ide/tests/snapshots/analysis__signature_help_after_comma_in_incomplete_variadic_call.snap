@@ -1,18 +1,20 @@
 ---
 source: crates/mpl-ide/tests/analysis.rs
-expression: "signature_snapshot(\"from prod:requests | bucket by le using interpolate_cumulative_histogram(linear,\",\nPosition::new(0, 80),)"
+expression: "signature_snapshot(\"from prod:requests | bucket by le using interpolate_cumulative_histogram(\\n    linear,\\n    0.5\",\nPosition::new(1, 11),)"
 ---
 SOURCE:
 
-1 │ from prod:requests | bucket by le using interpolate_cumulative_histogram(linear,
-  ·                                                                                 ┬
-  ·                                                                                 │ ╭──────────────────────────────────────────────────╮
-  ·                                                                                 ╰─┤ interpolate_cumulative_histogram(mode, specs...) │
-  ·                                                                                   │                                                  │
-  ·                                                                                   │ Aggregate cumulative histogram series.           │
-  ·                                                                                   │                                                  │
-  ·                                                                                   │ parameters:                                      │
-  ·                                                                                   │                                                  │
-  ·                                                                                   │ 1. (mode) The histogram interpolation mode.      │
-  ·                                                                                   │ 2. (specs...) The bucket specifications. ←       │
-  ·                                                                                   ╰──────────────────────────────────────────────────╯
+1 │ from prod:requests | bucket by le using interpolate_cumulative_histogram(
+2 │     linear,
+  ·            ┬
+  ·            │ ╭──────────────────────────────────────────────────╮
+  ·            ╰─┤ interpolate_cumulative_histogram(mode, specs...) │
+  ·              │                                                  │
+  ·              │ Aggregate cumulative histogram series.           │
+  ·              │                                                  │
+  ·              │ parameters:                                      │
+  ·              │                                                  │
+  ·              │ 1. (mode) The histogram interpolation mode.      │
+  ·              │ 2. (specs...) The bucket specifications. ←       │
+  ·              ╰──────────────────────────────────────────────────╯
+3 │     0.5

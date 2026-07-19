@@ -1,0 +1,21 @@
+---
+source: crates/mpl-ide/tests/analysis.rs
+expression: "signature_snapshot(\"set timezone = \\\"UTC\\\";\\nfrom prod:requests\\n| group by \\n| map rate\",\nPosition::new(2, 11),)"
+---
+SOURCE:
+
+1 │ set timezone = "UTC";
+2 │ from prod:requests
+3 │ | group by
+  ·            ┬
+  ·            │ ╭────────────────────────────────────────────────────╮
+  ·            ╰─┤ group by <tag...> using <function>                 │
+  ·              │                                                    │
+  ·              │ Groups series by tags using an aggregate function. │
+  ·              │                                                    │
+  ·              │ parameters:                                        │
+  ·              │                                                    │
+  ·              │ 1. (<tag...>) The tags used to group series. ←     │
+  ·              │ 2. (<function>) The aggregate function.            │
+  ·              ╰────────────────────────────────────────────────────╯
+4 │ | map rate
