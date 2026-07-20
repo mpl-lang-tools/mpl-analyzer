@@ -49,6 +49,10 @@ material under MPL's MIT option. The upstream notice is reproduced in
 `THIRD_PARTY_NOTICES.md`. Any MPL material used under Apache-2.0 instead must be
 identified explicitly.
 
+The repository's own MIT notice names the MPL contributors as its copyright
+holder. That project notice is separate from, and does not replace, Axiom's
+retained notice for MPL material incorporated from `axiomhq/mpl`.
+
 For copied or substantially derived material:
 
 - record the upstream repository, file, and revision;

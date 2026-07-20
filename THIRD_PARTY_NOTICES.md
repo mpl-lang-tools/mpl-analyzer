@@ -5,7 +5,9 @@
 MPL is developed by Axiom, Inc. at
 <https://github.com/axiomhq/mpl> and is available under the MIT or Apache-2.0
 licenses. MPL material incorporated into this project is used under the MIT
-option unless a source file explicitly states otherwise.
+option unless a source file explicitly states otherwise. Axiom's notice below
+is retained for that material; the MPL contributors notice for this repository
+is maintained separately in `LICENSE-MIT`.
 
 MIT License
 
