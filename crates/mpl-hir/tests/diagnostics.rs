@@ -170,7 +170,7 @@ dataset:metric
   | map filter::gt(150)
   | map is::ge(0.95)
   | align to $__interval using avg
-  | bucket by host using histogram
+  | bucket by host using histogram(count)
 "#,
     ));
 }
@@ -201,4 +201,65 @@ fn real_indented_sample_is_clean() {
   | align to 5m using avg
 "#,
     ));
+}
+
+#[test]
+fn rejects_invalid_time_unit_like_mplc() {
+    insta::assert_snapshot!(snapshot("dataset:metric | align to 5x using avg"));
+}
+
+#[test]
+fn rejects_unknown_pipe_keyword_like_mplc() {
+    insta::assert_snapshot!(snapshot("dataset:metric | fflter tag == \"value\"",));
+}
+
+#[test]
+fn rejects_unresolved_source_parameter_like_mplc() {
+    insta::assert_snapshot!(snapshot("$does_not_exist:bar"));
+}
+
+#[test]
+fn rejects_cumulative_histogram_without_conversion_like_mplc() {
+    insta::assert_snapshot!(snapshot(
+        "test:http_request_duration_seconds_bucket\n\
+         | where code == #/[123]../\n\
+         | bucket by method, path to 5m using interpolate_cumulative_histogram(sum, 0.90, 0.99)",
+    ));
+}
+
+#[test]
+fn rejects_delta_histogram_conversion_like_mplc() {
+    insta::assert_snapshot!(snapshot(
+        "test:http_request_duration_seconds_bucket\n\
+         | where code == #/[123]../\n\
+         | bucket by method, path to 5m using interpolate_delta_histogram(rate, 0.90, 0.99)",
+    ));
+}
+
+#[test]
+fn accepts_join_like_mplc() {
+    insta::assert_snapshot!(snapshot(
+        "test:kube_pod_status_ready\n\
+         | group by pod using sum\n\
+         | join created_by_kind from test:kube_pod_info by pod",
+    ));
+}
+
+#[test]
+fn accepts_replace_like_mplc() {
+    insta::assert_snapshot!(snapshot(
+        "test:container_cpu_usage_seconds_total\n\
+         | replace service = pod ~ #s/(.+)-.+-.+/$1/\n\
+         | group by service using max",
+    ));
+}
+
+#[test]
+fn rejects_join_without_from_like_mplc() {
+    insta::assert_snapshot!(snapshot("test:requests | join host test:metadata by host",));
+}
+
+#[test]
+fn rejects_replace_without_pattern_like_mplc() {
+    insta::assert_snapshot!(snapshot("test:requests | replace service = pod ~"));
 }

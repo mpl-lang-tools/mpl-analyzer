@@ -1,0 +1,13 @@
+---
+source: crates/mpl-hir/tests/diagnostics.rs
+expression: "snapshot(\"test:container_cpu_usage_seconds_total\\n\\\n         | replace service = pod ~ #s/(.+)-.+-.+/$1/\\n\\\n         | group by service using max\",)"
+---
+INPUT:
+
+test:container_cpu_usage_seconds_total
+| replace service = pod ~ #s/(.+)-.+-.+/$1/
+| group by service using max
+
+DIAGNOSTICS:
+
+No diagnostics.

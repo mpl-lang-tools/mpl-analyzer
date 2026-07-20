@@ -1,0 +1,20 @@
+---
+source: crates/mpl-hir/tests/diagnostics.rs
+expression: "snapshot(\"test:requests | replace service = pod ~\")"
+---
+INPUT:
+
+test:requests | replace service = pod ~
+
+DIAGNOSTICS:
+
+1. Error: MPL syntax error: unexpected token or operation
+
+REPORTS:
+
+REPORT 1:
+
+  × MPL syntax error: unexpected token or operation
+   ╭────
+ 1 │ test:requests | replace service = pod ~
+   ╰────

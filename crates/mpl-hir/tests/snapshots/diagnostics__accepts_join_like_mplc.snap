@@ -1,0 +1,13 @@
+---
+source: crates/mpl-hir/tests/diagnostics.rs
+expression: "snapshot(\"test:kube_pod_status_ready\\n\\\n         | group by pod using sum\\n\\\n         | join created_by_kind from test:kube_pod_info by pod\",)"
+---
+INPUT:
+
+test:kube_pod_status_ready
+| group by pod using sum
+| join created_by_kind from test:kube_pod_info by pod
+
+DIAGNOSTICS:
+
+No diagnostics.

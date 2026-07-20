@@ -285,16 +285,17 @@ impl Lexer<'_> {
     }
 
     fn bump_regex(&mut self) {
-        self.pos += if self.peek(1) == Some(b's') { 3 } else { 2 };
+        let mut delimiters = if self.peek(1) == Some(b's') { 2 } else { 1 };
+        self.pos += if delimiters == 2 { 3 } else { 2 };
         while self.pos < self.input.len() {
             match self.input.as_bytes()[self.pos] {
                 b'\\' => self.pos = (self.pos + 2).min(self.input.len()),
                 b'/' => {
                     self.pos += 1;
-                    if self.input.as_bytes()[self.pos.saturating_sub(2)] == b's' {
-                        continue;
+                    delimiters -= 1;
+                    if delimiters == 0 {
+                        break;
                     }
-                    break;
                 }
                 _ => self.pos += 1,
             }
@@ -314,7 +315,9 @@ impl Lexer<'_> {
             "true" | "false" => TokenKind::Bool,
             "set" | "param" | "where" | "filter" | "map" | "align" | "group" | "bucket"
             | "extend" | "compute" | "using" | "to" | "over" | "by" | "as" | "ifdef" | "else"
-            | "and" | "or" | "not" | "is" | "from" | "sample" => TokenKind::Keyword,
+            | "and" | "or" | "not" | "is" | "from" | "sample" | "join" | "replace" => {
+                TokenKind::Keyword
+            }
             "inf" => TokenKind::Number,
             _ => TokenKind::Ident,
         }
@@ -355,6 +358,8 @@ fn classify_number(text: &str) -> TokenKind {
         || text.ends_with('y')
     {
         TokenKind::Duration
+    } else if text.bytes().any(|byte| byte.is_ascii_alphabetic()) {
+        TokenKind::Unknown
     } else {
         TokenKind::Number
     }

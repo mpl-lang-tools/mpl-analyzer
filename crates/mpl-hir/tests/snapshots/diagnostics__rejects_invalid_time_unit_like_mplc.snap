@@ -1,0 +1,22 @@
+---
+source: crates/mpl-hir/tests/diagnostics.rs
+expression: "snapshot(\"dataset:metric | align to 5x using avg\")"
+---
+INPUT:
+
+dataset:metric | align to 5x using avg
+
+DIAGNOSTICS:
+
+1. Error: MPL syntax error: unexpected token or operation
+
+REPORTS:
+
+REPORT 1:
+
+  × MPL syntax error: unexpected token or operation
+   ╭────
+ 1 │ dataset:metric | align to 5x using avg
+   ·                           ─┬
+   ·                            ╰── MPL syntax error: unexpected token or operation
+   ╰────

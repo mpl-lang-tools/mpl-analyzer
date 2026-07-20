@@ -129,11 +129,15 @@ impl Validator {
     }
 
     fn validate_source(&mut self, source: &Source) {
-        if source.dataset.is_none() {
+        if let Some(dataset) = &source.dataset {
+            self.validate_parameter_name(dataset);
+        } else {
             self.error(source.range, "missing source dataset");
         }
 
-        if source.metric.is_none() {
+        if let Some(metric) = &source.metric {
+            self.validate_parameter_name(metric);
+        } else {
             self.error(source.range, "missing source metric");
         }
     }
@@ -189,6 +193,9 @@ impl Validator {
         }
 
         self.validate_using_function(FunctionKind::Bucket, pipe.function.as_ref(), pipe.range);
+        if let Some(function) = &pipe.function {
+            self.validate_bucket_function(function);
+        }
     }
 
     fn validate_compute_rule(&mut self, rule: &ComputeRule) {
@@ -234,14 +241,76 @@ impl Validator {
         }
     }
 
+    fn validate_bucket_function(&mut self, function: &FunctionCall) {
+        match function.name.text.as_str() {
+            "histogram" | "interpolate_delta_histogram" => {
+                if function.args.is_empty() {
+                    self.error(
+                        function.name.range,
+                        format!("missing bucket specifications for `{}`", function.name.text),
+                    );
+                }
+                for arg in &function.args {
+                    self.validate_bucket_spec(arg);
+                }
+            }
+            "interpolate_cumulative_histogram" => {
+                let Some((conversion, specs)) = function.args.split_first() else {
+                    self.error(
+                        function.name.range,
+                        "missing histogram conversion method and bucket specifications",
+                    );
+                    return;
+                };
+                if !matches!(
+                    conversion,
+                    Expr::Name { name, .. } if matches!(name.text.as_str(), "rate" | "increase")
+                ) {
+                    self.error(
+                        conversion.range(),
+                        "expected histogram conversion method `rate` or `increase`",
+                    );
+                }
+                if specs.is_empty() {
+                    self.error(function.name.range, "missing bucket specifications");
+                }
+                for spec in specs {
+                    self.validate_bucket_spec(spec);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn validate_bucket_spec(&mut self, spec: &Expr) {
+        let valid = match spec {
+            Expr::Number { .. } => true,
+            Expr::Name { name, .. } => {
+                matches!(name.text.as_str(), "count" | "avg" | "sum" | "min" | "max")
+            }
+            _ => false,
+        };
+        if !valid {
+            self.error(
+                spec.range(),
+                "expected bucket specification `count`, `avg`, `sum`, `min`, `max`, or a number",
+            );
+        }
+    }
+
+    fn validate_parameter_name(&mut self, name: &crate::model::NameRef) {
+        if name.text.starts_with('$')
+            && !stdlib::is_builtin_param(&name.text)
+            && !self.declared_params.contains(&normalise_param(&name.text))
+        {
+            self.error(name.range, format!("unknown parameter `{}`", name.text));
+        }
+    }
+
     fn validate_expr(&mut self, expr: &Expr) {
         match expr {
             Expr::Param { name, .. } => {
-                if !stdlib::is_builtin_param(&name.text)
-                    && !self.declared_params.contains(&normalise_param(&name.text))
-                {
-                    self.error(name.range, format!("unknown parameter `{}`", name.text));
-                }
+                self.validate_parameter_name(name);
             }
             Expr::Call { call, .. } => {
                 for arg in &call.args {
@@ -254,11 +323,8 @@ impl Validator {
             | Expr::Paren {
                 expr: Some(expr), ..
             } => self.validate_expr(expr),
-            Expr::Compare { rhs, .. } => {
-                if let Some(rhs) = rhs {
-                    self.validate_expr(rhs);
-                }
-            }
+            Expr::Compare { rhs: Some(rhs), .. } => self.validate_expr(rhs),
+            Expr::Compare { rhs: None, .. } => {}
             _ => {}
         }
     }
@@ -285,10 +351,11 @@ fn declared_params(input: &str) -> HashSet<String> {
         .peekable();
 
     while let Some(token) = iter.next() {
-        if token.kind == TokenKind::Keyword && token.text == "param" {
-            if let Some(param) = iter.next_if(|token| token.kind == TokenKind::Param) {
-                params.insert(normalise_param(&param.text));
-            }
+        if token.kind == TokenKind::Keyword
+            && token.text == "param"
+            && let Some(param) = iter.next_if(|token| token.kind == TokenKind::Param)
+        {
+            params.insert(normalise_param(&param.text));
         }
     }
 

@@ -1,0 +1,26 @@
+---
+source: crates/mpl-hir/tests/diagnostics.rs
+expression: "snapshot(\"test:http_request_duration_seconds_bucket\\n\\\n         | where code == #/[123]../\\n\\\n         | bucket by method, path to 5m using interpolate_cumulative_histogram(sum, 0.90, 0.99)\",)"
+---
+INPUT:
+
+test:http_request_duration_seconds_bucket
+| where code == #/[123]../
+| bucket by method, path to 5m using interpolate_cumulative_histogram(sum, 0.90, 0.99)
+
+DIAGNOSTICS:
+
+1. Error: expected histogram conversion method `rate` or `increase`
+
+REPORTS:
+
+REPORT 1:
+
+  × expected histogram conversion method `rate` or `increase`
+   ╭─[3:71]
+ 1 │ test:http_request_duration_seconds_bucket
+ 2 │ | where code == #/[123]../
+ 3 │ | bucket by method, path to 5m using interpolate_cumulative_histogram(sum, 0.90, 0.99)
+   ·                                                                       ─┬─
+   ·                                                                        ╰── expected histogram conversion method `rate` or `increase`
+   ╰────

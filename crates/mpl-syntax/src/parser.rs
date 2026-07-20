@@ -469,6 +469,64 @@ impl Parser {
                 .map(|it| it.range.end)
                 .unwrap_or(keyword.range.end);
             TextRange::new(pipe.range.start, end)
+        } else if self.at_keyword("join") {
+            let keyword = self.bump();
+            let joined_tags = self.parse_required_name_list("expected tags after `join`");
+            if self.at_keyword("from") {
+                self.bump();
+            } else {
+                self.error_here("expected `from` in join operation");
+            }
+            let source = if self.can_start_name() {
+                Some(self.parse_source())
+            } else {
+                self.error_here("expected source after `from`");
+                None
+            };
+            if self.at_keyword("by") {
+                self.bump();
+            } else {
+                self.error_here("expected `by` in join operation");
+            }
+            let matching_tags = self.parse_required_name_list("expected tags after `by`");
+            let end = matching_tags
+                .or_else(|| source.as_ref().map(|range| range.end))
+                .or(joined_tags)
+                .unwrap_or(keyword.range.end);
+            TextRange::new(pipe.range.start, end)
+        } else if self.at_keyword("replace") {
+            let keyword = self.bump();
+            let target = self.parse_name().or_else(|| {
+                self.error_here("expected tag after `replace`");
+                None
+            });
+            let mut end = target
+                .as_ref()
+                .map(|name| name.range.end)
+                .unwrap_or(keyword.range.end);
+
+            let mut has_operation = false;
+            if self.eat(TokenKind::Eq).is_some() {
+                has_operation = true;
+                if let Some(source) = self.parse_name() {
+                    end = source.range.end;
+                } else {
+                    self.error_here("expected source tag after `=`");
+                }
+            }
+
+            if self.current().text == "~" {
+                self.bump();
+                if self.at(TokenKind::Regex) {
+                    end = self.parse_expr().end;
+                } else {
+                    self.error_here("expected substitution pattern after `~`");
+                }
+            } else if !has_operation {
+                self.error_here("expected `=` or `~` in replace operation");
+            }
+
+            TextRange::new(pipe.range.start, end)
         } else if self.at_keyword("ifdef") {
             let end = self.parse_ifdef_pipe_tail();
             TextRange::new(pipe.range.start, end)
@@ -482,8 +540,11 @@ impl Parser {
                 self.previous_end().unwrap_or(keyword.range.end),
             )
         } else {
-            if self.can_start_name() {
-                self.parse_name();
+            if let Some(name) = self.parse_name() {
+                self.error_at(
+                    format!("unknown pipeline operation `{}`", name.text),
+                    name.range,
+                );
             }
             self.recover_until(&[
                 TokenKind::Pipe,
@@ -509,6 +570,25 @@ impl Parser {
                 continue;
             }
             break;
+        }
+        end
+    }
+
+    fn parse_required_name_list(&mut self, message: &str) -> Option<usize> {
+        let mut end = if let Some(name) = self.parse_name() {
+            Some(name.range.end)
+        } else {
+            self.error_here(message);
+            None
+        };
+
+        while self.eat(TokenKind::Comma).is_some() {
+            if let Some(name) = self.parse_name() {
+                end = Some(name.range.end);
+            } else {
+                self.error_here("expected tag after `,`");
+                break;
+            }
         }
         end
     }

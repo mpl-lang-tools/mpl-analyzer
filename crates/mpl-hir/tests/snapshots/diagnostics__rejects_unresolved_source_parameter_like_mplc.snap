@@ -1,0 +1,22 @@
+---
+source: crates/mpl-hir/tests/diagnostics.rs
+expression: "snapshot(\"$does_not_exist:bar\")"
+---
+INPUT:
+
+$does_not_exist:bar
+
+DIAGNOSTICS:
+
+1. Error: unknown parameter `$does_not_exist`
+
+REPORTS:
+
+REPORT 1:
+
+  × unknown parameter `$does_not_exist`
+   ╭────
+ 1 │ $does_not_exist:bar
+   · ───────┬───────
+   ·        ╰── unknown parameter `$does_not_exist`
+   ╰────

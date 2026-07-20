@@ -12,14 +12,20 @@ analysis to `mpl-ide`.
 - `textDocument/didClose`: removes the stored document and clears diagnostics.
 
 Diagnostics are requested from `mpl-ide` and translated to LSP diagnostic
-ranges and severities before publication.
+ranges and severities before publication. Published diagnostics currently omit
+document versions, diagnostic codes, related information, tags, and data.
 
 ## Requests
 
 - `textDocument/completion`: returns IDE completion items for the current
-  document and position.
-- `textDocument/hover`: returns IDE hover contents and range when available.
-- `textDocument/signatureHelp`: returns IDE signature help when available.
+  document and position. Every item carries a `textEdit` replacement range, so
+  partially typed prefixes are replaced by the full completion label.
+- `textDocument/hover`: returns Markdown contents and the annotated source range
+  when available.
+- `textDocument/signatureHelp`: returns one signature with Markdown
+  documentation, parameter label offsets, and the active parameter when
+  available. `(` and `,` are advertised as trigger characters, and `,` as a
+  retrigger character.
 - `textDocument/formatting`: returns a single full-document text edit when
   formatting changes the document, or an empty edit list when it is already
   formatted.
@@ -27,3 +33,13 @@ ranges and severities before publication.
 Positions from the client are interpreted as LSP UTF-16 positions and converted
 to the byte offsets used by the IDE layer. Internal byte ranges are converted
 back to UTF-16 LSP ranges before being sent to clients.
+
+Requests for documents that are not open return an empty completion/formatting
+result or `null` hover/signature help. The server currently has no workspace
+index and does not read unopened files on demand.
+
+## Not advertised
+
+The server does not currently advertise incremental synchronization, code
+actions, rename, definitions/references, symbols, semantic tokens, inlay hints,
+workspace configuration, or range formatting.

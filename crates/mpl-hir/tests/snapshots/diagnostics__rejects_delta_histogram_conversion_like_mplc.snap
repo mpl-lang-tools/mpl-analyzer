@@ -1,0 +1,26 @@
+---
+source: crates/mpl-hir/tests/diagnostics.rs
+expression: "snapshot(\"test:http_request_duration_seconds_bucket\\n\\\n         | where code == #/[123]../\\n\\\n         | bucket by method, path to 5m using interpolate_delta_histogram(rate, 0.90, 0.99)\",)"
+---
+INPUT:
+
+test:http_request_duration_seconds_bucket
+| where code == #/[123]../
+| bucket by method, path to 5m using interpolate_delta_histogram(rate, 0.90, 0.99)
+
+DIAGNOSTICS:
+
+1. Error: expected bucket specification `count`, `avg`, `sum`, `min`, `max`, or a number
+
+REPORTS:
+
+REPORT 1:
+
+  × expected bucket specification `count`, `avg`, `sum`, `min`, `max`, or a number
+   ╭─[3:66]
+ 1 │ test:http_request_duration_seconds_bucket
+ 2 │ | where code == #/[123]../
+ 3 │ | bucket by method, path to 5m using interpolate_delta_histogram(rate, 0.90, 0.99)
+   ·                                                                  ──┬─
+   ·                                                                    ╰── expected bucket specification `count`, `avg`, `sum`, `min`, `max`, or a number
+   ╰────

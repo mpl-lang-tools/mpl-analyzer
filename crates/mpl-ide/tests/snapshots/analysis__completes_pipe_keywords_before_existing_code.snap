@@ -8,10 +8,12 @@ SOURCE:
   ·                      ┬
   ·                      ╰ where
   ·                        filter
-  ·                        map    ←
+  ·                        map     ←
   ·                        align
   ·                        group
   ·                        bucket
+  ·                        join
+  ·                        replace
   ·                        extend
   ·                        as
 

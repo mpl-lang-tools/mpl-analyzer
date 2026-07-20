@@ -1,10 +1,14 @@
 # Architecture
 
-`mpl-analyzer` is an IDE-first implementation for MPL. The compiler or query
-engine is not the source of editor truth; the analyzer owns partial syntax,
-recovery, source ranges, formatting, completions, and code actions.
+`mpl-analyzer` is a standalone, IDE-first implementation of MPL. It owns
+partial syntax, recovery, source ranges, diagnostics, formatting, completions,
+hover, and signature help. It does not invoke or embed `mplc` at runtime.
 
-The final intended shape follows the same broad architecture style as
+The MPL implementation and its public examples remain compatibility references.
+The analyzer should agree with `mplc` where practical while retaining the
+error-tolerant syntax model needed by editors.
+
+The implementation follows the same broad architecture style as
 rust-analyzer:
 
 ```text
@@ -17,10 +21,11 @@ source text
   -> LSP adapter
 ```
 
-This is an architectural influence, not a license to copy implementation.
-`mpl-analyzer` must not copy rust-analyzer source code, generated code,
-grammar definitions, tests, or prose verbatim. Use public concepts and design
-patterns only, then implement MPL-specific code in this repository.
+Architectural influence and code reuse are separate questions. Before reusing
+rust-analyzer or any other project's implementation, generated code, tests,
+grammar, or prose, verify its license and preserve all required notices and
+attribution. Record substantially copied or derived material in the provenance
+documentation.
 
 ## Layers
 
@@ -39,7 +44,7 @@ comments, whitespace, incomplete constructs, and syntax errors.
 The CST matters because IDE features operate on live, partially typed files.
 Users expect diagnostics, completions, hover, formatting, and code actions to
 work before the file is semantically valid. A lossy parser would discard the
-exact source structure needed for source ranges, incremental reparsing,
+exact source structure needed for source ranges, future incremental reparsing,
 round-trip formatting, and precise edits.
 
 ### Typed AST wrappers
@@ -51,10 +56,11 @@ ergonomic while keeping the underlying tree lossless.
 
 ### HIR
 
-HIR lowers syntax into semantic MPL structures. This layer owns name-like
-resolution, function and transformation validation, semantic diagnostics, and
-normal forms that IDE features can query without depending on concrete syntax
-details.
+HIR lowers supported syntax into semantic MPL structures. This layer owns
+parameter checks, function and transformation validation, semantic diagnostics,
+and normal forms that IDE features can query without depending on concrete
+syntax details. Syntax support may precede HIR support; constructs that are only
+recognized for recovery remain explicit unknown pipes after lowering.
 
 HIR should keep source mappings back to CST/AST ranges so semantic diagnostics
 and assists can point at the right text.
@@ -62,9 +68,9 @@ and assists can point at the right text.
 ### IDE
 
 The IDE layer is the user-facing analysis API. It combines syntax and HIR to
-provide diagnostics, lints, completions, hover, signature help, formatting, and
-future code actions. It should expose plain Rust APIs that are independent of
-JSON-RPC and LSP types.
+provide diagnostics, lints, completions with replacement ranges, hover,
+signature help, formatting, and future code actions. It exposes plain Rust APIs
+that are independent of JSON-RPC and LSP types.
 
 ### LSP
 
@@ -83,6 +89,9 @@ semantic, or completion logic.
 - `mpl-ide`: owns editor features such as merged diagnostics, lints,
   completions, hover, signature help, formatting entry points, and future code
   actions.
+- `mpl-code-render`: owns source excerpts and point/span annotations used by
+  human-readable IDE snapshots. It is a presentation helper, not an analysis
+  layer.
 - `mpl-lsp`: owns JSON-RPC/LSP transport, document storage, UTF-16/byte range
   conversion, capability advertisement, and request adaptation to `mpl-ide`.
 - `mpl-cli`: owns command-line debug and smoke-test entry points for parse,
@@ -118,8 +127,9 @@ Use `insta` snapshots for stable, reviewable outputs at each layer.
 
 Snapshot fixtures should include valid public MPL examples, incomplete files,
 malformed constructs, comments and whitespace-heavy inputs, and cursor-position
-cases. When behavior changes intentionally, update snapshots in the same change
-and make the semantic reason clear in the review.
+cases. Keep one behavior case per snapshot so failures identify a single
+contract. When behavior changes intentionally, update snapshots in the same
+change and make the semantic reason clear in the review.
 
 Command details are documented in `docs/commands.md`. LSP transport behavior
 and advertised capabilities are documented in `docs/lsp.md`.

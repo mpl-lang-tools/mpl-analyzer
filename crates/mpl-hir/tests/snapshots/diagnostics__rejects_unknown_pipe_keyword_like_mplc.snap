@@ -1,0 +1,22 @@
+---
+source: crates/mpl-hir/tests/diagnostics.rs
+expression: "snapshot(\"dataset:metric | fflter tag == \\\"value\\\"\",)"
+---
+INPUT:
+
+dataset:metric | fflter tag == "value"
+
+DIAGNOSTICS:
+
+1. Error: MPL syntax error: unexpected token or operation
+
+REPORTS:
+
+REPORT 1:
+
+  × MPL syntax error: unexpected token or operation
+   ╭────
+ 1 │ dataset:metric | fflter tag == "value"
+   ·                  ───┬──
+   ·                     ╰── MPL syntax error: unexpected token or operation
+   ╰────

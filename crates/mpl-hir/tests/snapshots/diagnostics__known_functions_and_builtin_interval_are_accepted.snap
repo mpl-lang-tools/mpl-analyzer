@@ -1,6 +1,6 @@
 ---
 source: crates/mpl-hir/tests/diagnostics.rs
-expression: "snapshot(r#\"set custom_unit = \"ms\";\ndataset:metric\n  | map fill::const(0)\n  | align to $__interval using avg\n  | bucket by host using histogram\n\"#,)"
+expression: "snapshot(r#\"set custom_unit = \"ms\";\ndataset:metric\n  | map fill::const(0)\n  | map filter::gt(150)\n  | map is::ge(0.95)\n  | align to $__interval using avg\n  | bucket by host using histogram(count)\n\"#,)"
 ---
 INPUT:
 
@@ -10,7 +10,7 @@ dataset:metric
   | map filter::gt(150)
   | map is::ge(0.95)
   | align to $__interval using avg
-  | bucket by host using histogram
+  | bucket by host using histogram(count)
 
 DIAGNOSTICS:
 

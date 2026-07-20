@@ -376,6 +376,8 @@ fn pipe_keyword_items(replacement_range: TextRange) -> Vec<CompletionItem> {
         ("align", "align window"),
         ("group", "group series"),
         ("bucket", "bucket series"),
+        ("join", "join tags from another metric"),
+        ("replace", "rename or rewrite a tag"),
         ("extend", "derive field"),
         ("as", "alias source"),
     ]
@@ -676,9 +678,7 @@ fn containing_call_lparen(tokens: &[Token], offset: usize) -> Option<usize> {
             _ => {}
         }
 
-        let Some(prev) = previous_meaningful_index(tokens, index) else {
-            return None;
-        };
+        let prev = previous_meaningful_index(tokens, index)?;
         index = prev;
     }
 }
@@ -710,6 +710,8 @@ fn keyword_docs(token: &Token) -> Option<&'static str> {
         "align" => Some("Aligns datapoints into fixed windows using an aggregate function."),
         "group" => Some("Groups series by tags using an aggregate function."),
         "bucket" => Some("Aggregates series into histogram buckets."),
+        "join" => Some("Joins tags from another metric."),
+        "replace" => Some("Renames or rewrites a tag."),
         "extend" => Some("Adds derived fields."),
         "compute" => Some("Combines query results with a compute function."),
         "using" => Some("Introduces the function used by this transformation."),
@@ -738,6 +740,8 @@ fn keyword_signature(token: &Token) -> Option<&'static str> {
         "align" => Some("align <window> using <function>"),
         "group" => Some("group by <tag...> using <function>"),
         "bucket" => Some("bucket by <tag...> using <function>"),
+        "join" => Some("join <tag...> from <dataset>:<metric> by <tag...>"),
+        "replace" => Some("replace <tag> = <tag> [~ <pattern>]"),
         "extend" => Some("extend <name> = <expr>"),
         "compute" => Some("compute <name> using <function>"),
         "using" => Some("using <function>"),
