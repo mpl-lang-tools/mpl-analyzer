@@ -51,6 +51,13 @@ impl miette::Diagnostic for SnapshotDiagnostic {
             self.diagnostic.message.clone(),
         ))))
     }
+
+    fn help(&self) -> Option<Box<dyn Display + '_>> {
+        self.diagnostic
+            .help
+            .as_ref()
+            .map(|help| Box::new(help) as Box<dyn Display>)
+    }
 }
 
 fn snapshot(input: &str) -> String {
@@ -76,6 +83,14 @@ fn snapshot(input: &str) -> String {
             diagnostic.message
         )
         .unwrap();
+        for action in &diagnostic.actions {
+            writeln!(
+                snapshot,
+                "   Fix: {} -> {:?}",
+                action.title, action.replacement
+            )
+            .unwrap();
+        }
     }
 
     writeln!(snapshot).unwrap();
@@ -197,10 +212,39 @@ $dataset:metric
 fn real_indented_sample_is_clean() {
     insta::assert_snapshot!(snapshot(
         r#"test:http_requests_total
-  | filter status == 500
+  | where status == 500
   | align to 5m using avg
 "#,
     ));
+}
+
+#[test]
+fn warns_about_lowercase_duration_param_type() {
+    insta::assert_snapshot!(snapshot(
+        "param $window: duration;\nprod:requests | align to $window using avg",
+    ));
+}
+
+#[test]
+fn warns_about_declared_param_using_system_prefix() {
+    insta::assert_snapshot!(snapshot(
+        "param $__window: Duration;\nprod:requests | align to $__window using avg",
+    ));
+}
+
+#[test]
+fn hints_to_replace_deprecated_filter() {
+    insta::assert_snapshot!(snapshot("prod:requests | filter status == 500",));
+}
+
+#[test]
+fn hints_to_remove_unnecessary_identifier_backticks() {
+    insta::assert_snapshot!(snapshot("prod:requests | where `status` == 500",));
+}
+
+#[test]
+fn keeps_backticks_required_by_identifier_syntax() {
+    insta::assert_snapshot!(snapshot("prod:requests | where `http.status` == 500",));
 }
 
 #[test]

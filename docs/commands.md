@@ -19,7 +19,8 @@ converts their UTF-16 positions.
 - `parse <file>`: prints the lossless CST debug tree followed by the parser's
   detailed syntax diagnostics.
 - `check <file>`: prints analyzer diagnostics as pretty JSON. Each diagnostic
-  contains `severity`, `message`, and a byte `range` with `start` and `end`.
+  contains `severity`, `message`, optional `help`, replacement `actions`, and a
+  byte `range` with `start` and `end`.
 - `format <file>`: prints formatted MPL source.
 - `complete <file> <offset>`: prints completion items as pretty JSON. Items
   contain their full label, detail, and the byte range the label replaces.

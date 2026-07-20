@@ -21,14 +21,17 @@ Reference material consulted from that repository includes:
 
 - `spec.md`
 - `src/mpl.pest`
+- `src/parser.rs` and `src/query.rs` warning behavior
 - `tests/examples`
 - `tests/errors`
-- `extra/mpl-language-server`
+- `extra/mpl-language-server/src/diagnostics.rs` and `src/lints.rs`
+- `packages/mpl-codemirror/src/diagnostics.ts`
 
 The example and error corpora are used as behavioral parity inputs: valid
-fixtures should remain diagnostic-free and invalid fixtures should produce an
-analyzer error. Compatibility is evaluated from observable outcomes rather than
-by importing the compiler or its grammar into the analyzer.
+fixtures should remain free of error-level diagnostics and invalid fixtures
+should produce an analyzer error. Valid deprecated or non-canonical input may
+produce warnings or hints. Compatibility is evaluated from observable outcomes
+rather than by importing the compiler or its grammar into the analyzer.
 
 Architectural influence:
 

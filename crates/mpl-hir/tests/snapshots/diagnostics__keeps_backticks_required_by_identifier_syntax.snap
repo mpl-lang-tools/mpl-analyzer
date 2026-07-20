@@ -1,0 +1,11 @@
+---
+source: crates/mpl-hir/tests/diagnostics.rs
+expression: "snapshot(\"prod:requests | where `http.status` == 500\",)"
+---
+INPUT:
+
+prod:requests | where `http.status` == 500
+
+DIAGNOSTICS:
+
+No diagnostics.

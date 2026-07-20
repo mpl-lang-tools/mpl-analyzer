@@ -1,0 +1,24 @@
+---
+source: crates/mpl-hir/tests/diagnostics.rs
+expression: "snapshot(\"prod:requests | filter status == 500\",)"
+---
+INPUT:
+
+prod:requests | filter status == 500
+
+DIAGNOSTICS:
+
+1. Hint: Consider using `where` instead of `filter`
+   Fix: Replace with `where` -> "where"
+
+REPORTS:
+
+REPORT 1:
+
+  Consider using `where` instead of `filter`
+   ╭────
+ 1 │ prod:requests | filter status == 500
+   ·                 ───┬──
+   ·                    ╰── Consider using `where` instead of `filter`
+   ╰────
+  help: `filter` is deprecated; `where` is preferred

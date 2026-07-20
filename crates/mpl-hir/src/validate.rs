@@ -31,6 +31,15 @@ pub struct Diagnostic {
     pub severity: Severity,
     pub message: String,
     pub range: TextRange,
+    pub help: Option<String>,
+    pub actions: Vec<DiagnosticAction>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DiagnosticAction {
+    pub title: String,
+    pub range: TextRange,
+    pub replacement: String,
 }
 
 pub fn validate(parse: &Parse<SourceFileNode>) -> Vec<Diagnostic> {
@@ -42,7 +51,16 @@ pub fn validate(parse: &Parse<SourceFileNode>) -> Vec<Diagnostic> {
     let source = parse.syntax().text().to_string();
     let declared_params = declared_params(&source);
     let file = lower(parse);
-    validate_hir(&file, diagnostics, declared_params)
+    let mut diagnostics = validate_hir(&file, diagnostics, declared_params);
+    if diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.severity == Severity::Error)
+    {
+        return diagnostics;
+    }
+
+    diagnostics.extend(source_diagnostics(&source));
+    diagnostics
 }
 
 fn validate_hir(
@@ -67,6 +85,8 @@ fn syntax_diagnostics(parse: &Parse<SourceFileNode>) -> Vec<Diagnostic> {
             severity: Severity::Error,
             message: "MPL syntax error: unexpected token or operation".to_string(),
             range: diag.range,
+            help: None,
+            actions: Vec::new(),
         })
         .collect()
 }
@@ -338,8 +358,143 @@ impl Validator {
             severity,
             message: message.into(),
             range,
+            help: None,
+            actions: Vec::new(),
         });
     }
+}
+
+fn source_diagnostics(source: &str) -> Vec<Diagnostic> {
+    let tokens = lex(source);
+    let significant = tokens
+        .iter()
+        .filter(|token| {
+            !matches!(
+                token.kind,
+                TokenKind::Whitespace | TokenKind::Comment | TokenKind::Eof
+            )
+        })
+        .collect::<Vec<_>>();
+    let mut diagnostics = Vec::new();
+    let mut hints = Vec::new();
+
+    for (index, token) in significant.iter().enumerate() {
+        if token.kind == TokenKind::Keyword
+            && token.text == "filter"
+            && index > 0
+            && matches!(
+                significant[index - 1].kind,
+                TokenKind::Pipe | TokenKind::LBrace
+            )
+        {
+            hints.push(Diagnostic {
+                severity: Severity::Hint,
+                message: "Consider using `where` instead of `filter`".to_string(),
+                range: token.range,
+                help: Some("`filter` is deprecated; `where` is preferred".to_string()),
+                actions: vec![DiagnosticAction {
+                    title: "Replace with `where`".to_string(),
+                    range: token.range,
+                    replacement: "where".to_string(),
+                }],
+            });
+        }
+
+        if token.kind == TokenKind::EscapedIdent {
+            push_unnecessary_escape(&mut hints, token.text.as_str(), token.range);
+        } else if token.kind == TokenKind::Param
+            && let Some(escaped) = token.text.strip_prefix('$')
+        {
+            let range = TextRange::new(token.range.start + 1, token.range.end);
+            push_unnecessary_escape(&mut hints, escaped, range);
+        }
+    }
+
+    for declaration in significant.split_inclusive(|token| token.kind == TokenKind::Semicolon) {
+        if declaration
+            .first()
+            .is_none_or(|token| token.kind != TokenKind::Keyword || token.text != "param")
+        {
+            continue;
+        }
+
+        if let Some((param, name)) = declaration
+            .get(1)
+            .filter(|token| token.kind == TokenKind::Param)
+            .and_then(|param| param_name(&param.text).map(|name| (*param, name)))
+            && name.starts_with("__")
+        {
+            diagnostics.push(Diagnostic {
+                severity: Severity::Warning,
+                message: format!(
+                    "The param ${name} uses the `__` prefix reserved for system params"
+                ),
+                range: param.range,
+                help: None,
+                actions: Vec::new(),
+            });
+        }
+
+        for token in declaration {
+            if token.kind == TokenKind::Ident && token.text == "duration" {
+                diagnostics.push(Diagnostic {
+                    severity: Severity::Warning,
+                    message: "`duration` is deprecated; use `Duration`".to_string(),
+                    range: token.range,
+                    help: Some(
+                        "Param types use PascalCase: `Duration`, `Dataset`, `Regex`".to_string(),
+                    ),
+                    actions: vec![DiagnosticAction {
+                        title: "Replace with `Duration`".to_string(),
+                        range: token.range,
+                        replacement: "Duration".to_string(),
+                    }],
+                });
+            }
+        }
+    }
+
+    diagnostics.extend(hints);
+    diagnostics
+}
+
+fn push_unnecessary_escape(diagnostics: &mut Vec<Diagnostic>, escaped: &str, range: TextRange) {
+    let Some(inner) = escaped
+        .strip_prefix('`')
+        .and_then(|text| text.strip_suffix('`'))
+    else {
+        return;
+    };
+    if inner.is_empty() || !is_plain_ident(inner) {
+        return;
+    }
+
+    diagnostics.push(Diagnostic {
+        severity: Severity::Hint,
+        message: "Unnecessary backtick escaping".to_string(),
+        range,
+        help: Some(format!("`{inner}` is a valid unescaped identifier")),
+        actions: vec![DiagnosticAction {
+            title: "Remove backticks".to_string(),
+            range,
+            replacement: inner.to_string(),
+        }],
+    });
+}
+
+fn is_plain_ident(text: &str) -> bool {
+    let mut chars = text.chars();
+    matches!(chars.next(), Some(first) if first.is_ascii_alphabetic())
+        && chars.all(|char| char.is_ascii_alphanumeric() || char == '_')
+}
+
+fn param_name(text: &str) -> Option<&str> {
+    let name = text.strip_prefix('$')?;
+    Some(
+        name.strip_prefix('`')
+            .and_then(|name| name.strip_suffix('`'))
+            .unwrap_or(name),
+    )
 }
 
 fn declared_params(input: &str) -> HashSet<String> {
@@ -370,5 +525,55 @@ fn normalise_param(text: &str) -> String {
         format!("${inner}")
     } else {
         text.to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use mpl_syntax::parse_syntax;
+
+    use super::{Severity, validate};
+
+    #[test]
+    fn detects_each_deprecated_filter_in_a_valid_query() {
+        let diagnostics = validate(&parse_syntax("ds:metric | filter a == 1 | filter b == 2"));
+
+        assert_eq!(
+            diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.message.contains("`filter`"))
+                .count(),
+            2
+        );
+    }
+
+    #[test]
+    fn detects_deprecated_filter_inside_ifdef() {
+        let diagnostics = validate(&parse_syntax(
+            "param $tag: Option<string>;\nds:metric | ifdef($tag) { filter tag == $tag }",
+        ));
+
+        assert!(diagnostics.iter().any(|diagnostic| {
+            diagnostic.severity == Severity::Hint && diagnostic.message.contains("`filter`")
+        }));
+    }
+
+    #[test]
+    fn suppresses_hints_when_parsing_fails() {
+        let diagnostics = validate(&parse_syntax("ds: | filter `tag` == 1"));
+
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics[0].severity, Severity::Error);
+    }
+
+    #[test]
+    fn detects_lowercase_duration_in_optional_param_type() {
+        let diagnostics = validate(&parse_syntax(
+            "param $window: Option<duration>;\nds:metric | align to 1m using avg",
+        ));
+
+        assert!(diagnostics.iter().any(|diagnostic| {
+            diagnostic.severity == Severity::Warning && diagnostic.message.contains("`duration`")
+        }));
     }
 }

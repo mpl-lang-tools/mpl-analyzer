@@ -69,8 +69,8 @@ and assists can point at the right text.
 
 The IDE layer is the user-facing analysis API. It combines syntax and HIR to
 provide diagnostics, lints, completions with replacement ranges, hover,
-signature help, formatting, and future code actions. It exposes plain Rust APIs
-that are independent of JSON-RPC and LSP types.
+signature help, formatting, and diagnostic quick fixes. It exposes plain Rust
+APIs that are independent of JSON-RPC and LSP types.
 
 ### LSP
 
@@ -87,8 +87,8 @@ semantic, or completion logic.
 - `mpl-hir`: owns lowering from typed CST/AST wrappers into semantic MPL
   structures, semantic validation, semantic diagnostics, and source mappings.
 - `mpl-ide`: owns editor features such as merged diagnostics, lints,
-  completions, hover, signature help, formatting entry points, and future code
-  actions.
+  completions, hover, signature help, formatting entry points, and diagnostic
+  quick fixes.
 - `mpl-code-render`: owns source excerpts and point/span annotations used by
   human-readable IDE snapshots. It is a presentation helper, not an analysis
   layer.
@@ -117,8 +117,7 @@ Use `insta` snapshots for stable, reviewable outputs at each layer.
 - `mpl-hir` snapshots should cover lowering results, semantic diagnostics,
   syntax diagnostic pass-through, and source mapping behavior.
 - `mpl-ide` snapshots should cover diagnostics, completions, hover, signature
-  help, formatting edits, and future assists from representative cursor
-  positions.
+  help, formatting edits, and assists from representative cursor positions.
 - `mpl-lsp` tests should focus on protocol adaptation: position conversions,
   document synchronization, capability shape, and conversion of IDE results into
   LSP responses.

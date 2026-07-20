@@ -12,4 +12,4 @@ pub mod validate;
 
 pub use lower::lower;
 pub use model::*;
-pub use validate::{Diagnostic, Severity, validate};
+pub use validate::{Diagnostic, DiagnosticAction, Severity, validate};

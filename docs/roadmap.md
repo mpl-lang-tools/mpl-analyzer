@@ -24,9 +24,10 @@ Major work left, roughly in dependency order:
 7. **Expand structured documentation.** Grow the licensed and attributed
    function/keyword catalog used by completion, hover, and signature help,
    including richer examples and accurate parameter metadata.
-8. **Code actions.** Add targeted edits such as replacing deprecated `filter`,
-   inserting a missing `using`, correcting an unknown pipeline operation, and
-   qualifying a function name.
+8. **Expand code actions.** Beyond the existing diagnostic quick fixes for
+   deprecated `filter`, lowercase `duration`, and unnecessary backticks, add
+   targeted edits such as inserting a missing `using`, correcting an unknown
+   pipeline operation, and qualifying a function name.
 9. **LSP production work.** Add document versions, cancellation, tracing,
    workspace file handling, configuration, richer diagnostics, range formatting,
    and editor smoke tests.

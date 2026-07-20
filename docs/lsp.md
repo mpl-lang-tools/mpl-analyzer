@@ -12,8 +12,10 @@ analysis to `mpl-ide`.
 - `textDocument/didClose`: removes the stored document and clears diagnostics.
 
 Diagnostics are requested from `mpl-ide` and translated to LSP diagnostic
-ranges and severities before publication. Published diagnostics currently omit
-document versions, diagnostic codes, related information, tags, and data.
+ranges and severities before publication. Diagnostic help is appended after the
+primary message, matching the CodeMirror presentation. Published diagnostics
+currently omit document versions, diagnostic codes, related information, tags,
+and data.
 
 ## Requests
 
@@ -29,17 +31,21 @@ document versions, diagnostic codes, related information, tags, and data.
 - `textDocument/formatting`: returns a single full-document text edit when
   formatting changes the document, or an empty edit list when it is already
   formatted.
+- `textDocument/codeAction`: returns quick-fix replacement edits attached to
+  diagnostics, currently replacing deprecated `filter`, lowercase `duration`
+  parameter types, and unnecessary identifier backticks. Only actions whose
+  edit range intersects the requested range are returned.
 
 Positions from the client are interpreted as LSP UTF-16 positions and converted
 to the byte offsets used by the IDE layer. Internal byte ranges are converted
 back to UTF-16 LSP ranges before being sent to clients.
 
-Requests for documents that are not open return an empty completion/formatting
-result or `null` hover/signature help. The server currently has no workspace
-index and does not read unopened files on demand.
+Requests for documents that are not open return an empty completion,
+formatting, or code-action result, or `null` hover/signature help. The server
+currently has no workspace index and does not read unopened files on demand.
 
 ## Not advertised
 
-The server does not currently advertise incremental synchronization, code
-actions, rename, definitions/references, symbols, semantic tokens, inlay hints,
-workspace configuration, or range formatting.
+The server does not currently advertise incremental synchronization, rename,
+definitions/references, symbols, semantic tokens, inlay hints, workspace
+configuration, or range formatting.

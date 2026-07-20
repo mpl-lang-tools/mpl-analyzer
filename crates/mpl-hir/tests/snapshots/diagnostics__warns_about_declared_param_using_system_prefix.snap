@@ -1,0 +1,24 @@
+---
+source: crates/mpl-hir/tests/diagnostics.rs
+expression: "snapshot(\"param $__window: Duration;\\nprod:requests | align to $__window using avg\",)"
+---
+INPUT:
+
+param $__window: Duration;
+prod:requests | align to $__window using avg
+
+DIAGNOSTICS:
+
+1. Warning: The param $__window uses the `__` prefix reserved for system params
+
+REPORTS:
+
+REPORT 1:
+
+  ⚠ The param $__window uses the `__` prefix reserved for system params
+   ╭─[1:7]
+ 1 │ param $__window: Duration;
+   ·       ────┬────
+   ·           ╰── The param $__window uses the `__` prefix reserved for system params
+ 2 │ prod:requests | align to $__window using avg
+   ╰────

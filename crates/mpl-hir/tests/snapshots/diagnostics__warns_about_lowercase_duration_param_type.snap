@@ -1,0 +1,26 @@
+---
+source: crates/mpl-hir/tests/diagnostics.rs
+expression: "snapshot(\"param $window: duration;\\nprod:requests | align to $window using avg\",)"
+---
+INPUT:
+
+param $window: duration;
+prod:requests | align to $window using avg
+
+DIAGNOSTICS:
+
+1. Warning: `duration` is deprecated; use `Duration`
+   Fix: Replace with `Duration` -> "Duration"
+
+REPORTS:
+
+REPORT 1:
+
+  ⚠ `duration` is deprecated; use `Duration`
+   ╭─[1:16]
+ 1 │ param $window: duration;
+   ·                ────┬───
+   ·                    ╰── `duration` is deprecated; use `Duration`
+ 2 │ prod:requests | align to $window using avg
+   ╰────
+  help: Param types use PascalCase: `Duration`, `Dataset`, `Regex`

@@ -1,0 +1,24 @@
+---
+source: crates/mpl-hir/tests/diagnostics.rs
+expression: "snapshot(\"prod:requests | where `status` == 500\",)"
+---
+INPUT:
+
+prod:requests | where `status` == 500
+
+DIAGNOSTICS:
+
+1. Hint: Unnecessary backtick escaping
+   Fix: Remove backticks -> "status"
+
+REPORTS:
+
+REPORT 1:
+
+  Unnecessary backtick escaping
+   ╭────
+ 1 │ prod:requests | where `status` == 500
+   ·                       ────┬───
+   ·                           ╰── Unnecessary backtick escaping
+   ╰────
+  help: `status` is a valid unescaped identifier

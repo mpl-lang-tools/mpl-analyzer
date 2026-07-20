@@ -8,17 +8,22 @@ use std::{collections::HashMap, error::Error, fmt::Debug};
 
 use lsp_server::{Connection, Message, Request, RequestId, Response};
 use lsp_types::{
-    CompletionOptions, CompletionResponse, Diagnostic, DiagnosticSeverity,
+    CodeAction, CodeActionKind, CodeActionOrCommand, CodeActionProviderCapability,
+    CodeActionResponse, CompletionOptions, CompletionResponse, Diagnostic, DiagnosticSeverity,
     DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
     DocumentFormattingParams, Documentation, HoverContents, HoverProviderCapability,
     InitializeParams, MarkupContent, MarkupKind, OneOf, ParameterInformation, ParameterLabel,
     Position, PublishDiagnosticsParams, Range, ServerCapabilities, SignatureHelpOptions,
     SignatureInformation, TextDocumentSyncCapability, TextDocumentSyncKind, TextEdit, Uri,
+    WorkspaceEdit,
     notification::{
         DidChangeTextDocument, DidCloseTextDocument, DidOpenTextDocument, Notification,
         PublishDiagnostics,
     },
-    request::{Completion, Formatting, HoverRequest, Request as LspRequest, SignatureHelpRequest},
+    request::{
+        CodeActionRequest, Completion, Formatting, HoverRequest, Request as LspRequest,
+        SignatureHelpRequest,
+    },
 };
 
 type Result<T> = std::result::Result<T, Box<dyn Error + Send + Sync>>;
@@ -66,6 +71,7 @@ fn server_capabilities() -> ServerCapabilities {
             ..Default::default()
         }),
         document_formatting_provider: Some(OneOf::Left(true)),
+        code_action_provider: Some(CodeActionProviderCapability::Simple(true)),
         ..Default::default()
     }
 }
@@ -73,36 +79,36 @@ fn server_capabilities() -> ServerCapabilities {
 fn handle_notification(
     connection: &Connection,
     notification: lsp_server::Notification,
-    documents: &mut HashMap<Uri, String>,
+    documents: &mut HashMap<String, String>,
 ) -> Result<()> {
     match notification.method.as_str() {
         DidOpenTextDocument::METHOD => {
             let params: DidOpenTextDocumentParams = serde_json::from_value(notification.params)?;
             let uri = params.text_document.uri;
             let text = params.text_document.text;
-            documents.insert(uri.clone(), text);
+            documents.insert(uri.to_string(), text);
             publish_diagnostics(
                 connection,
                 &uri,
-                documents.get(&uri).expect("inserted document"),
+                documents.get(uri.as_str()).expect("inserted document"),
             )?;
         }
         DidChangeTextDocument::METHOD => {
             let params: DidChangeTextDocumentParams = serde_json::from_value(notification.params)?;
             let uri = params.text_document.uri;
             if let Some(change) = params.content_changes.into_iter().last() {
-                documents.insert(uri.clone(), change.text);
+                documents.insert(uri.to_string(), change.text);
                 publish_diagnostics(
                     connection,
                     &uri,
-                    documents.get(&uri).expect("changed document"),
+                    documents.get(uri.as_str()).expect("changed document"),
                 )?;
             }
         }
         DidCloseTextDocument::METHOD => {
             let params: DidCloseTextDocumentParams = serde_json::from_value(notification.params)?;
             let uri = params.text_document.uri;
-            documents.remove(&uri);
+            documents.remove(uri.as_str());
             publish_lsp_diagnostics(connection, uri, Vec::new())?;
         }
         _ => {}
@@ -114,7 +120,7 @@ fn handle_notification(
 fn handle_request(
     connection: &Connection,
     request: Request,
-    documents: &HashMap<Uri, String>,
+    documents: &HashMap<String, String>,
 ) -> Result<()> {
     match request.method.as_str() {
         Completion::METHOD => {
@@ -122,7 +128,7 @@ fn handle_request(
             let uri = params.text_document_position.text_document.uri;
             let position = params.text_document_position.position;
             let items = documents
-                .get(&uri)
+                .get(uri.as_str())
                 .map(|text| {
                     let offset = position_to_offset(text, position);
                     mpl_ide::completions(text, offset)
@@ -141,7 +147,7 @@ fn handle_request(
             let params: lsp_types::HoverParams = serde_json::from_value(request.params)?;
             let uri = params.text_document_position_params.text_document.uri;
             let position = params.text_document_position_params.position;
-            let hover = documents.get(&uri).and_then(|text| {
+            let hover = documents.get(uri.as_str()).and_then(|text| {
                 let offset = position_to_offset(text, position);
                 mpl_ide::hover(text, offset).map(|hover| hover_to_lsp(text, hover))
             });
@@ -151,7 +157,7 @@ fn handle_request(
             let params: lsp_types::SignatureHelpParams = serde_json::from_value(request.params)?;
             let uri = params.text_document_position_params.text_document.uri;
             let position = params.text_document_position_params.position;
-            let signature_help = documents.get(&uri).and_then(|text| {
+            let signature_help = documents.get(uri.as_str()).and_then(|text| {
                 let offset = position_to_offset(text, position);
                 mpl_ide::signature_help(text, offset).map(signature_help_to_lsp)
             });
@@ -165,7 +171,7 @@ fn handle_request(
             let params: DocumentFormattingParams = serde_json::from_value(request.params)?;
             let uri = params.text_document.uri;
             let edits = documents
-                .get(&uri)
+                .get(uri.as_str())
                 .map(|text| {
                     let formatted = mpl_ide::format(text);
                     if formatted == *text {
@@ -179,6 +185,15 @@ fn handle_request(
                 })
                 .unwrap_or_default();
             send_ok(connection, request.id, serde_json::to_value(edits)?)?;
+        }
+        CodeActionRequest::METHOD => {
+            let params: lsp_types::CodeActionParams = serde_json::from_value(request.params)?;
+            let uri = params.text_document.uri;
+            let actions = documents
+                .get(uri.as_str())
+                .map(|text| code_actions(text, &uri, params.range))
+                .unwrap_or_default();
+            send_ok(connection, request.id, serde_json::to_value(actions)?)?;
         }
         _ => send_error(
             connection,
@@ -194,19 +209,52 @@ fn handle_request(
 fn publish_diagnostics(connection: &Connection, uri: &Uri, text: &str) -> Result<()> {
     let diagnostics = mpl_ide::diagnostics(text)
         .into_iter()
-        .map(|diagnostic| Diagnostic {
-            range: text_range_to_lsp(text, diagnostic.range.start, diagnostic.range.end),
-            severity: Some(diagnostic_severity(&diagnostic.severity)),
-            code: None,
-            code_description: None,
-            source: Some("mpl-analyzer".to_string()),
-            message: diagnostic.message,
-            related_information: None,
-            tags: None,
-            data: None,
+        .map(|diagnostic| {
+            let message = diagnostic.help.map_or(diagnostic.message.clone(), |help| {
+                format!("{}\n{help}", diagnostic.message)
+            });
+            Diagnostic {
+                range: text_range_to_lsp(text, diagnostic.range.start, diagnostic.range.end),
+                severity: Some(diagnostic_severity(&diagnostic.severity)),
+                code: None,
+                code_description: None,
+                source: Some("mpl-analyzer".to_string()),
+                message,
+                related_information: None,
+                tags: None,
+                data: None,
+            }
         })
         .collect();
     publish_lsp_diagnostics(connection, uri.clone(), diagnostics)
+}
+
+fn code_actions(text: &str, uri: &Uri, range: Range) -> CodeActionResponse {
+    let requested = (
+        position_to_offset(text, range.start),
+        position_to_offset(text, range.end),
+    );
+    mpl_ide::diagnostics(text)
+        .into_iter()
+        .flat_map(|diagnostic| diagnostic.actions)
+        .filter(|action| action.range.start <= requested.1 && requested.0 <= action.range.end)
+        .map(|action| {
+            let edit = TextEdit {
+                range: text_range_to_lsp(text, action.range.start, action.range.end),
+                new_text: action.replacement,
+            };
+            CodeActionOrCommand::CodeAction(CodeAction {
+                title: action.title,
+                kind: Some(CodeActionKind::QUICKFIX),
+                edit: Some(WorkspaceEdit {
+                    changes: Some(HashMap::from([(uri.clone(), vec![edit])])),
+                    ..WorkspaceEdit::default()
+                }),
+                is_preferred: Some(true),
+                ..CodeAction::default()
+            })
+        })
+        .collect()
 }
 
 fn diagnostic_severity(severity: &impl Debug) -> DiagnosticSeverity {
@@ -417,6 +465,38 @@ mod tests {
             capabilities.document_formatting_provider,
             Some(OneOf::Left(true))
         ));
+        assert!(matches!(
+            capabilities.code_action_provider,
+            Some(CodeActionProviderCapability::Simple(true))
+        ));
+    }
+
+    #[test]
+    fn deprecated_filter_quick_fix_replaces_only_the_keyword() {
+        let text = "prod:requests | filter status == 500";
+        let uri: Uri = "file:///query.mpl".parse().unwrap();
+        let actions = code_actions(
+            text,
+            &uri,
+            Range::new(Position::new(0, 16), Position::new(0, 22)),
+        );
+
+        let CodeActionOrCommand::CodeAction(action) = &actions[0] else {
+            panic!("expected a code action");
+        };
+        assert_eq!(action.title, "Replace with `where`");
+        let edit = action
+            .edit
+            .as_ref()
+            .and_then(|edit| edit.changes.as_ref())
+            .and_then(|changes| changes.get(&uri))
+            .and_then(|edits| edits.first())
+            .unwrap();
+        assert_eq!(
+            edit.range,
+            Range::new(Position::new(0, 16), Position::new(0, 22))
+        );
+        assert_eq!(edit.new_text, "where");
     }
 
     #[test]

@@ -1,12 +1,16 @@
 # MPL Language Contract
 
 This document describes the analyzer's current compatibility boundary. Public
-MPL documentation and the sibling MPL implementation are behavioral references;
-the analyzer remains an independent implementation and does not call `mplc`.
+MPL documentation and the canonical
+[`axiomhq/mpl`](https://github.com/axiomhq/mpl) repository, including verified
+local checkouts of it, are behavioral references. The analyzer remains an
+independent implementation and does not call `mplc`.
 
-The canonical `mpl/tests/examples` corpus currently produces no analyzer
-diagnostics, and every fixture in `mpl/tests/errors` produces at least one. This
-is a regression baseline, not a claim of complete compiler equivalence.
+The canonical `mpl/tests/examples` corpus is expected to produce no error-level
+analyzer diagnostics, and every fixture in `mpl/tests/errors` is expected to
+produce at least one error. Valid queries may still produce warnings or hints
+for accepted but deprecated or non-canonical syntax. This is a regression
+baseline, not a claim of complete compiler equivalence.
 
 ## Syntax coverage
 
@@ -40,14 +44,34 @@ HIR validation currently checks:
 - syntax failures such as unknown pipeline operations and unsupported duration
   suffixes.
 
+## Warnings and hints
+
+After a query parses and passes semantic validation, the analyzer reports the
+same source-level warnings and hints exposed by MPL's legacy language server:
+
+- lowercase `duration` parameter types produce a warning and a replacement edit
+  for `Duration`;
+- user parameter declarations beginning with the reserved `$__` prefix produce
+  a warning;
+- deprecated `filter` operations produce a hint and a replacement edit for
+  `where`; and
+- backtick-escaped identifiers that are valid plain identifiers produce a hint
+  and an edit that removes the backticks.
+
+Warnings emitted while validating externally supplied runtime parameter values,
+such as a provided parameter that was not declared in the MPL source, are not
+part of source analysis because neither the IDE API nor LSP receives those
+runtime values.
+
 ## Partial or deferred coverage
 
 - `join` and `replace` are structurally parsed, but do not yet have dedicated
   HIR nodes or semantic validation.
 - `ifdef` and `sample` are recognized for lossless parsing and recovery; their
   bodies are not semantically modeled.
-- Parameter declarations are recognized and used for name validation, but their
-  types and defaults are not lowered into the HIR model.
+- Parameter declarations are recognized and used for name validation and
+  source-level warnings, but their types and defaults are not lowered into the
+  HIR model.
 - Time-range contents are preserved as source text rather than semantically
   interpreted.
 - Function validation is catalog-based; general arity and type checking remain
