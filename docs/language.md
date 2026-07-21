@@ -53,7 +53,7 @@ same source-level warnings and hints exposed by MPL's legacy language server:
   for `Duration`;
 - user parameter declarations beginning with the reserved `$__` prefix produce
   a warning;
-- deprecated `filter` operations produce a hint and a replacement edit for
+- deprecated `filter` operations produce a warning and a replacement edit for
   `where`; and
 - backtick-escaped identifiers that are valid plain identifiers produce a hint
   and an edit that removes the backticks.

@@ -388,8 +388,8 @@ fn source_diagnostics(source: &str) -> Vec<Diagnostic> {
             )
         {
             hints.push(Diagnostic {
-                severity: Severity::Hint,
-                message: "Consider using `where` instead of `filter`".to_string(),
+                severity: Severity::Warning,
+                message: "`filter` is deprecated; use `where`".to_string(),
                 range: token.range,
                 help: Some("`filter` is deprecated; `where` is preferred".to_string()),
                 actions: vec![DiagnosticAction {
@@ -554,7 +554,7 @@ mod tests {
         ));
 
         assert!(diagnostics.iter().any(|diagnostic| {
-            diagnostic.severity == Severity::Hint && diagnostic.message.contains("`filter`")
+            diagnostic.severity == Severity::Warning && diagnostic.message.contains("`filter`")
         }));
     }
 

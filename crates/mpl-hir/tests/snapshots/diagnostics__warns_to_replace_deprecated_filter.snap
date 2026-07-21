@@ -8,17 +8,17 @@ prod:requests | filter status == 500
 
 DIAGNOSTICS:
 
-1. Hint: Consider using `where` instead of `filter`
+1. Warning: `filter` is deprecated; use `where`
    Fix: Replace with `where` -> "where"
 
 REPORTS:
 
 REPORT 1:
 
-  Consider using `where` instead of `filter`
+  ⚠ `filter` is deprecated; use `where`
    ╭────
  1 │ prod:requests | filter status == 500
    ·                 ───┬──
-   ·                    ╰── Consider using `where` instead of `filter`
+   ·                    ╰── `filter` is deprecated; use `where`
    ╰────
   help: `filter` is deprecated; `where` is preferred

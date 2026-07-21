@@ -233,7 +233,7 @@ fn warns_about_declared_param_using_system_prefix() {
 }
 
 #[test]
-fn hints_to_replace_deprecated_filter() {
+fn warns_to_replace_deprecated_filter() {
     insta::assert_snapshot!(snapshot("prod:requests | filter status == 500",));
 }
 
